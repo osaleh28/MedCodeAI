@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String            @id @default(cuid())
+  name         String
+  email        String            @unique
+  passwordHash String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  analyses     BillingAnalysis[]
+}
+
+model BillingAnalysis {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title                String
+  syntheticNote        String   @db.Text
+  syntheticDataConfirmed Boolean @default(false)
+  mdmComplexity        String?
+  suggestedCptCode     String?
+  rationale            String?  @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+model AuthThrottle {
+  key         String   @id
+  attempts    Int      @default(1)
+  windowStart DateTime @default(now())
+}
