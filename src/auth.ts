@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { AuthError } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { getDb } from "@/lib/db";
@@ -9,6 +9,11 @@ import { allowAuthAttempt } from "@/lib/throttle";
 const dummyHash = "$2b$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Auth.js's default error logger can include nested database exceptions.
+  // Keep authentication diagnostics categorical and credentials out of logs.
+  logger: {
+    error(error) { console.error("[auth] Authentication failed", { category: error instanceof AuthError ? error.type : "UnknownError" }); },
+  },
   session: { strategy: "jwt", maxAge: 60 * 60 * 8 },
   pages: { signIn: "/login" },
   providers: [Credentials({

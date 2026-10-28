@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { configuredApiKey, requestStructured, ProviderError } from "../src/lib/clinical/provider-client";
+import { configuredApiKey, requestStructured, ProviderError, providerErrorMessage } from "../src/lib/clinical/provider-client";
 import { clinicalExtractionSchema, groundExtraction, hpiSchema, validateHpi } from "../src/lib/clinical/contracts";
 import { demoCases } from "../src/lib/clinical/demos";
 import { evaluateMdm } from "../src/lib/clinical/mdm";
@@ -34,6 +34,23 @@ test("missing API key prevents any provider request", async () => {
   let called = false;
   await assert.rejects(() => requestStructured({ ...configuration, apiKey: "", fetcher: async () => { called = true; return Response.json({}); } }), ProviderError);
   assert.equal(called, false);
+});
+
+test("exhausted credits and account limits get actionable messages rather than an automatic retry", () => {
+  assert.match(providerErrorMessage(new ProviderError("quota", 429, "credit_balance_exhausted")), /credit balance is exhausted/);
+  assert.match(providerErrorMessage(new ProviderError("quota", 429, "project_spend_limit_exceeded")), /billing or usage limit/);
+  assert.match(providerErrorMessage(new ProviderError("quota", 429, "rate_limit_exceeded")), /try later/);
+  assert.ok(!providerErrorMessage(new ProviderError("quota", 429, "credit_balance_exhausted")).includes("try later"));
+});
+
+test("provider errors retain safe billing codes without exposing provider messages or notes", async () => {
+  await assert.rejects(() => requestStructured({ ...configuration, fetcher: async () => Response.json({ error: { code: "credit_balance_exhausted", message: "Private provider details" } }, { status: 429 }) }), (error: unknown) => {
+    assert.ok(error instanceof ProviderError);
+    assert.equal(error.providerCode, "credit_balance_exhausted");
+    assert.ok(!error.message.includes("Private"));
+    assert.ok(!providerErrorMessage(error).includes("Private"));
+    return true;
+  });
 });
 
 test("placeholder and incorrectly pasted credentials are rejected without an API call", async () => {

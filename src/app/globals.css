@@ -98,7 +98,7 @@ h2 { font-size: clamp(27px, 3vw, 36px); line-height: 1.25; letter-spacing: -1.2p
 .auth-panel h1 { font-size: 31px; letter-spacing: -1px; margin-top: 0; margin-bottom: 10px; }
 .auth-panel .intro { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
 .auth-form { display: grid; gap: 20px; }
-.field { display: grid; gap: 7px; }
+.field { display: grid; gap: 7px; min-width: 0; }
 .field label { font-size: 13px; font-weight: 700; }
 .field input { width: 100%; min-height: 47px; padding: 10px 13px; border: 1px solid #b9ccd6; border-radius: 7px; color: var(--ink); background: white; }
 .field input::placeholder { color: #71838f; }
@@ -117,7 +117,7 @@ h2 { font-size: clamp(27px, 3vw, 36px); line-height: 1.25; letter-spacing: -1.2p
 .dashboard-heading p { color: var(--muted); font-size: 14px; margin: 0; }
 .phase-badge { font-size: 12px; color: var(--teal); background: #e2f1ef; padding: 7px 13px; border: 1px solid #c4dfd9; border-radius: 30px; white-space: nowrap; }
 .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin: 28px 0; }
-.panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 27px; }
+.panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 27px; min-width: 0; }
 .panel h2 { font-size: 20px; letter-spacing: -.5px; margin: 0; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
 .count { font-size: 12px; border-radius: 20px; padding: 2px 9px; background: #eff4f7; color: var(--muted); }
@@ -145,7 +145,7 @@ h2 { font-size: clamp(27px, 3vw, 36px); line-height: 1.25; letter-spacing: -1.2p
 .workspace-header .nav-actions { gap: 20px; flex-wrap: wrap; }
 .analysis-form { margin-top: 28px; }
 .analysis-fieldset { display: grid; gap: 24px; border: 0; padding: 0; margin: 0; min-width: 0; }
-.field textarea, .field select { width: 100%; padding: 12px 14px; border: 1px solid #b9ccd6; border-radius: 7px; color: var(--ink); background: white; font: inherit; font-size: 14px; }
+.field textarea, .field select { width: 100%; min-width: 0; padding: 12px 14px; border: 1px solid #b9ccd6; border-radius: 7px; color: var(--ink); background: white; font: inherit; font-size: 14px; }
 .field textarea { resize: vertical; line-height: 1.75; min-height: 110px; }
 .field textarea::placeholder { color: #71838f; }
 .field select { min-height: 46px; }

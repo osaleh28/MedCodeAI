@@ -81,8 +81,17 @@ export function validateHpi(result: z.infer<typeof hpiSchema>, note: string): Hp
   const sameVocabulary = [...sourceWords].every((word) => suggestedWords.has(word)) && [...suggestedWords].every((word) => sourceWords.has(word));
   const negations = (value: string) => (value.toLowerCase().match(/\b(no|not|without|denies|denied|never|negative)\b/g) ?? []).length;
   const sameNumbers = [...new Set(numbers(original))].every((number) => numbers(suggested).includes(number));
+  // Preserve the clinical word/number sequence within each source sentence.
+  // Whole sentences may move and grammar may change, but swapping negations or
+  // doses between otherwise unchanged facts must not pass a vocabulary check.
+  // This intentionally withholds some valid paraphrases; it is not semantics.
+  const sentenceFacts = (value: string) => value.split(/(?<=[.!?])\s+/)
+    .map((sentence) => (sentence.toLowerCase().match(/[a-z]+|\d+(?:\.\d+)?/g) ?? [])
+      .filter((word) => !grammar.has(word)).join(" "))
+    .filter(Boolean).sort();
+  const sameSentenceFacts = JSON.stringify(sentenceFacts(original)) === JSON.stringify(sentenceFacts(suggested));
   const valid = result.status === "available" && original.trim().length > 0 && note.includes(original)
-    && sameVocabulary && sameNumbers && negations(original) === negations(suggested)
+    && sameVocabulary && sameNumbers && sameSentenceFacts && negations(original) === negations(suggested)
     && result.sentences.length > 0 && result.sentences.every((sentence) => sentence.sourceQuotes.length > 0
       && sentence.sourceQuotes.every((quote) => quote.trim().length > 0 && original.includes(quote))
       && numbers(sentence.text).every((number) => numbers(original).includes(number)));

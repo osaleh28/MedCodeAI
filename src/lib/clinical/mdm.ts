@@ -2,7 +2,7 @@ import { z } from "zod";
 import { hasGroundedEvidence, type ClinicalExtraction, type EvidenceFinding } from "./contracts";
 import type { NoteType } from "./input";
 
-export const RULE_VERSION = "hospital-mdm-2023-public-v1";
+export const RULE_VERSION = "hospital-mdm-2023-public-v2";
 export const ruleSources = [
   { title: "AMA hospital E/M guidelines, effective January 2023 (Table 1 and hospital descriptors)", url: "https://www.ama-assn.org/system/files/2023-e-m-descriptors-guidelines.pdf" },
   { title: "AMA E/M clarifications, updated January 2026", url: "https://www.ama-assn.org/practice-management/cpt/cpt-evaluation-and-management-em-revisions-faqs" },
@@ -41,7 +41,7 @@ function element(score: number, unresolved: boolean, explanation: string, accept
 
 function assessProblems(extraction: ClinicalExtraction, note: string): Element {
   const accepted: Scored[] = [], excluded: string[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, string>();
   const counts = new Map<string, number>();
   let unresolved = !extraction.problemsComplete;
   for (const item of extraction.problems) {
@@ -50,8 +50,21 @@ function assessProblems(extraction: ClinicalExtraction, note: string): Element {
       unresolved = true; excluded.push(`${item.label}: relevance, category, or evidence is uncertain.`); continue;
     }
     const key = item.problemKey.trim().toLowerCase();
-    if (seen.has(key)) { excluded.push(`${item.label}: duplicate problem.`); continue; }
-    seen.add(key); counts.set(item.criterion, (counts.get(item.criterion) ?? 0) + 1);
+    if (seen.has(key)) {
+      if (seen.get(key) !== item.criterion) {
+        unresolved = true;
+        // Conflicting interpretations of one illness are not an additional
+        // problem or reliable evidence for either severity classification.
+        const previous = seen.get(key)!;
+        counts.set(previous, Math.max(0, (counts.get(previous) ?? 0) - 1));
+        const index = accepted.findIndex((finding) => "problemKey" in finding && typeof finding.problemKey === "string" && finding.problemKey.trim().toLowerCase() === key);
+        if (index >= 0) accepted.splice(index, 1);
+        seen.set(key, "conflicting");
+        excluded.push(`${item.label}: conflicting categories for the same problem require clarification.`);
+      } else excluded.push(`${item.label}: duplicate problem.`);
+      continue;
+    }
+    seen.set(key, item.criterion); counts.set(item.criterion, (counts.get(item.criterion) ?? 0) + 1);
     accepted.push({ ...item, name: `${item.label} — ${item.criterion.replaceAll("_", " ")}` });
   }
   const count = (criterion: string) => counts.get(criterion) ?? 0;
@@ -86,7 +99,11 @@ function assessData(extraction: ClinicalExtraction, note: string): Element {
   let historian = false, interpretation = false, discussion = false;
   const eligible = extraction.data.filter((item) => {
     if (item.activity === "result_only") { excluded.push(`${item.label}: result listing alone earns no activity credit.`); return false; }
-    if (item.qualifies === false || item.separatelyReported === true) { excluded.push(`${item.label}: nonqualifying or separately reported activity.`); return false; }
+    if (item.qualifies === false || item.separatelyReported === true) {
+      if (!hasGroundedEvidence(item, note)) unresolved = true;
+      excluded.push(`${item.label}: nonqualifying or separately reported activity${!hasGroundedEvidence(item, note) ? "; exclusion evidence remains uncertain" : ""}.`);
+      return false;
+    }
     if (!hasGroundedEvidence(item, note) || item.qualifies !== true || !item.uniqueKey.trim()) {
       unresolved = true; excluded.push(`${item.label}: qualifying activity or identity cannot be confirmed.`); return false;
     }
@@ -172,7 +189,7 @@ export function evaluateMdm(extraction: ClinicalExtraction, note: string, noteTy
         : `Unresolved documentation permits MDM from ${minimum.toLowerCase()} to ${maximum.toLowerCase()}. A reliable final level and code cannot be determined.`,
     uncertaintyNotice: "Educational assessment, not validated coding advice. Clinical categories are AI interpretations of the original note, not verified facts. Missing information is never treated as work performed.",
     limitations: [
-      "Public AMA 2023 hospital MDM framework; CMS May 2026 context; reviewed October 27, 2026. This is not an exhaustive implementation of the licensed 2026 CPT manual or payer policies.",
+      "Public AMA 2023 hospital MDM framework; CMS May 2026 context; reviewed October 28, 2026. This is not an exhaustive implementation of the licensed 2026 CPT manual or payer policies.",
       "Initial/subsequent inpatient or observation encounter assumed by the user; note titles do not establish eligibility. No time-based coding, consultations, critical care, discharge, same-day admission/discharge, modifiers, or payer-specific edits.",
       "Uncertain findings are excluded from definite credit. If unresolved evidence could change the overall level, the result is indeterminate. Two unambiguous high elements can still establish high MDM despite an unknown third element.",
       "Test identity/overlap, external-source eligibility, independent interpretation, separate reporting, and clinical severity require human review. Unverifiable activities are not credited.",

@@ -17,7 +17,9 @@ export function getDb() {
   // Next.js preserves globals during development reloads, including .env edits.
   // Replace a client that was constructed with an earlier connection string.
   const previousClient = globalForPrisma.prisma;
-  const client = new PrismaClient({ adapter: new PrismaPg({ connectionString, max: 5 }) });
+  const client = new PrismaClient({ adapter: new PrismaPg({
+    connectionString, max: 5, connectionTimeoutMillis: 10_000, query_timeout: 15_000,
+  }) });
   globalForPrisma.prisma = client;
   globalForPrisma.databaseUrl = connectionString;
   globalForPrisma.prismaConstructor = PrismaClient;

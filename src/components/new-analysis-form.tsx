@@ -31,6 +31,7 @@ export function NewAnalysisForm() {
     if (!sample) return;
     if ((fullNote.trim() || Object.values(sections).some((value) => value.trim())) && !window.confirm("Replace both documentation drafts with this fictional example?")) return;
     setNoteType(sample.noteType); setFullNote(sample.note); setSections({ ...sample.sections });
+    setEncounterConfirmed(false);
     setSampleId(id); setError("");
   }
 
@@ -72,7 +73,7 @@ export function NewAnalysisForm() {
         <label className="checkbox-label mt-4"><input type="checkbox" checked={encounterConfirmed} onChange={(e) => setEncounterConfirmed(e.target.checked)} required /><span>This fictional encounter fits the selected hospital service family. It is not a consultation, critical-care service, discharge service, or same-day admission/discharge service.</span></label>
       </section>
 
-      <section className="panel"><div className="sample-picker"><div><h2>Try a fictional case</h2><p>Load a case, review its documentation, and choose live AI or its prepared educational extraction.</p></div><div className="field"><label htmlFor="demo-case">Synthetic example</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup><optgroup label="Danger Table Worksheet practice — updated framework">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
+      <section className="panel"><div className="sample-picker"><div><h2>Try a fictional case</h2><p>Load a case and choose Run live AI analysis to see OpenAI analyze its documentation. You can also edit the fictional note before analyzing.</p></div><div className="field"><label htmlFor="demo-case">Synthetic example</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup><optgroup label="Danger Table Worksheet practice — updated framework">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
 
       <MdmLearningGuide />
       {noteType === "progress" && <ProgressNoteGuide />}
@@ -85,7 +86,7 @@ export function NewAnalysisForm() {
       </section>
 
       <section className="panel"><h2>3. Review and analyze</h2><label className="checkbox-label mt-5"><input type="checkbox" checked={syntheticOnly} onChange={(e) => setSyntheticOnly(e.target.checked)} required /><span>I confirm this documentation is entirely fictional and contains no real patient information. Live analysis sends the active documentation to OpenAI.</span></label>
-        <div className="analysis-actions"><button className="button primary" type="submit" disabled={pending}>{pending ? <><LoaderCircle size={18} className="spin" /> Analyzing and saving…</> : <>Analyze with AI <ArrowRight size={17} /></>}</button>
+        <div className="analysis-actions"><button className="button primary" type="submit" disabled={pending}>{pending ? <><LoaderCircle size={18} className="spin" /> Analyzing and saving…</> : <>Run live AI analysis <ArrowRight size={17} /></>}</button>
           {unchangedSample && <button className="button secondary" type="button" disabled={pending} onClick={() => void submit("prepared_demo")}><FlaskConical size={17} /> Run prepared example</button>}
         </div><p className="field-help mt-3">Prepared examples use a reviewed fixture, not a live AI call. Editing a case requires live AI analysis. Results may take up to a minute.</p>
         <div aria-live="polite" aria-atomic="true">{pending && <p className="field-help mt-3" role="status">Checking documentation, evaluating MDM, and saving your results. Please keep this page open.</p>}{error && <p ref={errorRef} tabIndex={-1} role="alert" className="form-error mt-4">{error}</p>}</div>

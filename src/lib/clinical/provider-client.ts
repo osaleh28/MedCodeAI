@@ -11,6 +11,21 @@ export class ProviderError extends Error {
   }
 }
 
+export function providerErrorMessage(error: ProviderError) {
+  if (error.code === "quota") {
+    if (error.providerCode === "credit_balance_exhausted") return "Live AI analysis is unavailable because this demo's OpenAI API credit balance is exhausted. Run a prepared example, or contact the demo owner. Nothing was saved.";
+    if (["insufficient_quota", "project_spend_limit_exceeded", "organization_spend_limit_exceeded", "organization_usage_limit_exceeded"].includes(error.providerCode ?? "")) return "The demo's OpenAI API billing or usage limit was reached. Run a prepared example, or contact the demo owner. Nothing was saved.";
+    return "The AI provider's quota or rate limit was reached. Please try later or run a prepared example.";
+  }
+  return {
+    configuration: "Live AI analysis is currently unavailable. You can run an unchanged prepared example or try again later.",
+    timeout: "The AI request timed out. Nothing was saved. Please try again later.",
+    refusal: "The AI provider could not process this documentation. Nothing was saved. Try a fictional demonstration case.",
+    invalid_output: "The AI response could not be validated. Nothing was saved or assigned a code. Please try again later.",
+    unavailable: "The AI service is unavailable. Nothing was saved. Please try again later.",
+  }[error.code];
+}
+
 export function configuredApiKey(value: string | undefined) {
   const key = value?.trim();
   if (!key || /^(PASTE_|REPLACE_|YOUR_)/.test(key)) throw new ProviderError("configuration", undefined, "missing_api_key");
@@ -24,7 +39,7 @@ export function configuredApiKey(value: string | undefined) {
 // by the server wrapper; no browser module imports this client.
 export async function requestStructured<T extends z.ZodType>({
   schema, name, instructions, documentation, apiKey, model, fetcher = fetch,
-}: { schema: T; name: string; instructions: string; documentation: string; apiKey: string; model: string; fetcher?: typeof fetch }): Promise<z.infer<T>> {
+}: { schema: T; name: string; instructions: string; documentation: string | { sourceSpans: { id: number; text: string }[] }; apiKey: string; model: string; fetcher?: typeof fetch }): Promise<z.infer<T>> {
   const key = configuredApiKey(apiKey);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 40_000);

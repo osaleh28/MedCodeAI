@@ -91,6 +91,16 @@ test("unknown unique-test identities are unresolved, and oximetry earns no test 
   assert.equal(result.data.level, "Straightforward"); assert.equal(result.data.credited.length, 0);
 });
 
+test("unverified exclusions do not establish definitely minimal data", () => {
+  const sample = fixture("progress-high");
+  sample.extraction.risks = [{ ...sample.extraction.risks[0], criterion: "prescription_decision" }];
+  sample.extraction.data = [{ ...sample.extraction.data[0], qualifies: false, uncertain: true, evidence: ["Unmatched review or exclusion statement."] }];
+  const result = evaluateMdm(sample.extraction, sample.note, sample.noteType);
+  assert.equal(result.data.level, null);
+  assert.equal(result.data.credited.length, 0);
+  assert.equal(result.potentialCode, null);
+});
+
 test("multiple independent historians contribute at most one historian unit", () => {
   const sample = fixture();
   sample.extraction.data = ["family", "caregiver", "witness"].map((uniqueKey) => ({ ...sample.extraction.data[0], activity: "independent_historian", kind: "historian", uniqueKey }));
@@ -111,6 +121,30 @@ test("missing risk and data documentation does not default to a reliable low cod
   const result = evaluateMdm(sample.extraction, sample.note, sample.noteType);
   assert.equal(result.overall, null);
   assert.equal(result.potentialCode, null);
+});
+
+test("conflicting categories for one problem cannot change the result with extraction order", () => {
+  const sample = fixture("admission-high");
+  const first = { ...sample.extraction.problems[0], problemKey: " Same_Illness ", criterion: "stable_chronic" as const };
+  const second = { ...first, problemKey: "same_illness", criterion: "organ_threat" as const };
+  for (const problems of [[first, second], [second, first], [first, second, second]]) {
+    const result = evaluateMdm({ ...sample.extraction, problems }, sample.note, sample.noteType);
+    assert.equal(result.problems.level, null);
+    assert.equal(result.problems.credited.length, 0);
+    assert.equal(result.potentialCode, null);
+  }
+});
+
+test("HPI guards reject shifted negation and reassigned quantities while allowing sentence reordering", () => {
+  for (const [originalHpi, altered] of [
+    ["No chest pain. Reports cough.", "Reports chest pain. No cough."],
+    ["Reports cough for 2 days. Reports fever for 3 days.", "Reports cough for 3 days. Reports fever for 2 days."],
+  ]) {
+    const result = { status: "available" as const, originalHpi, clarificationQuestions: [], sentences: [{ text: altered, sourceQuotes: [originalHpi] }] };
+    assert.equal(validateHpi(result, originalHpi).status, "not_identified");
+    const reordered = originalHpi.split(/(?<=[.!?])\s+/).reverse().join(" ");
+    assert.equal(validateHpi({ ...result, sentences: [{ text: reordered, sourceQuotes: [originalHpi] }] }, originalHpi).status, "available");
+  }
 });
 
 test("two definite high elements can establish high MDM despite unknown data", () => {

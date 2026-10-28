@@ -2,173 +2,186 @@
 
 **Bill accurately. Document confidently. Understand why.**
 
-An educational portfolio application for hospitalist documentation, MDM, and billing education. **Synthetic data only. Never enter real patient information. This application is not HIPAA-compliant and is not for clinical care or actual billing decisions.**
+MedCode AI is a full-stack portfolio application for learning how hospitalist documentation supports medical decision-making (MDM) and potential hospital E/M CPT codes. It separates AI-assisted interpretation from a deterministic TypeScript rules engine and shows the evidence and uncertainty behind each assessment.
 
-## Phase 1
+> Portfolio demonstration only. Synthetic clinical data only. Not intended for patient care or actual billing decisions.
 
-The initial project directory was empty. This implementation adds:
+**Never enter real patient information, including real notes with names removed.** This application is not HIPAA-compliant and has not been clinically or billing validated.
 
-- A responsive navy, white, soft blue, and teal landing page.
-- Email/password registration with password confirmation, server validation, email normalization, a synthetic-data acknowledgement, and bcrypt hashing (cost 12).
-- Auth.js v5 Credentials login, encrypted JWT sessions with an eight-hour lifetime, and server-action logout. Auth.js manages session cookies and its authentication request protections. Next.js validates origins for server actions.
-- A protected dashboard and user-scoped list/detail queries. Every data helper checks the session and includes the authenticated user's ID in its query; authorization does not depend solely on a layout or browser redirect.
-- Prisma 7 models and an initial PostgreSQL migration for users, billing analyses, and shared authentication attempt limits.
-- Clear empty, pending, error, and not-found states; labeled forms; visible keyboard focus; reduced-motion support.
+[Existing public deployment](https://med-code-ai-eight.vercel.app) ? [Phase 3 verification](#phase-3-verification--october-28-2026) ? [Local setup](#local-setup) ? [Vercel release](#vercel-release)
 
-Phase 1 authentication and account behavior are preserved. Phase 2 extends the existing dashboard and analysis records below.
+The existing deployment does not automatically include uncommitted Phase 3 changes. Deployment requires owner approval.
 
-## Phase 2: documentation and MDM education
+## Problem statement
 
-**Portfolio demonstration only. Synthetic clinical data only. Not intended for patient care or actual billing decisions.**
+Clinical documentation can be lengthy without clearly showing which problems were addressed, which diagnostic activities occurred, or which management decisions were made. MedCode AI lets learners examine fictional notes, distinguish those elements, and ask clarification questions without inventing missing work or treating clearer wording as justification for a higher code.
 
-- `/dashboard/new`: Admission H&P or Progress Note, with a default full-note input and collapsible optional sections. Draft text survives switching workflows/modes while the form is mounted; only active fields are submitted. Drafts are not written to browser storage.
-- Encounter family is an explicit user-confirmed assumption. Initial/subsequent hospital inpatient/observation families only; the title does not establish eligibility. No time-based billing.
-- `/api/analyses` POST: requires a valid signed-in account, same-origin JSON, bounded/validated input, synthetic-data confirmation, and a shared per-account rate limit (10 live analyses or 20 prepared examples per 15 minutes). The server derives ownership from the session, never from client input.
-- Live extraction uses the OpenAI Responses REST API with strict JSON Schema, Zod validation, `store: false`, a 40-second provider timeout, and no tools. No new SDK package is required. Neither note contents nor raw provider/database exceptions are logged.
-- Every extracted finding has exact source excerpts or an explicit uncertainty flag. Unmatched excerpts cannot earn definite rule credit. AI categories are interpretations; substring validation does not independently validate clinical meaning.
-- Optional Admission HPI wording is generated separately from coding. Its original source, suggestion, sentence evidence, and clarification questions are displayed. Conservative guards withhold suggestions containing new/lost substantive vocabulary, changed numbers/negation counts, or unmatched source quotes. This is not semantic validation; every suggestion still requires review. Nothing automatically overwrites the note or increases its coding level.
-- Saved results distinguish source facts, clinical interpretations, deterministic rule conclusions, and uncertainty. Expandable diagnostic details cover labs, cardiac studies, imaging, other studies, external records, historians, and discussions.
-- `/dashboard/history` paginates only the signed-in user's records. Saved details and `/api/analyses/[id]` enforce the same ownership boundary. Earlier Phase 1 records remain readable without inventing Phase 2 results.
-- Twelve fictional cases include six core lower/moderate/high examples and six worksheet practice cases. **Run prepared example** uses an explicitly labeled fixture with independently specified expected outcomes, tested through the rules engine. It does not call OpenAI. Edited notes cannot silently use prepared fixtures.
+## Features
 
-The six core examples were rewritten after reviewing all 13 pages of `Scan 2021-9-8 02.15.09 (1).pdf` and all 14 pages of `Scan 2021-9-8 02.26.28 (1).pdf`. These supplied E/M University sheets and handwritten annotations use historical 1995/1997 documentation and problem/data-point methods, with examples dated 2008–2010. They are topic references, not the governing rules or treatment protocols. The application contains original fictional scenarios, not reproduced scan text, dollar amounts, or historical scoring tables. Raw scans remain local and ignored by Git.
+- Email/password registration with password confirmation, normalized email, bcrypt hashing at cost 12, Auth.js Credentials login/logout, and eight-hour JWT sessions.
+- Protected dashboard, paginated History, and saved analyses scoped to the authenticated user in every data query.
+- Admission H&P and Progress Note workflows; full-note input or optional collapsible sections. In-memory drafts survive mode switches while the form remains mounted. Only active fields are submitted.
+- Laboratory, cardiac, imaging, other diagnostic studies, data activities, history/examination, and assessment/plan fields. At least one active documentation field is required.
+- Optional HPI organization with original/suggested wording, source evidence, clarification questions, and a copy action. Original documentation is never overwritten.
+- Server-side OpenAI Responses requests with strict JSON Schema, numbered source references resolved to exact original excerpts, Zod validation, bounded input, and safe refusal/error handling.
+- Separate problems/data/risk assessments, a two-of-three MDM calculation, potential encounter-family CPT mapping, and indeterminate results where uncertainty changes the conclusion.
+- Progressive results showing source facts, clinical interpretations, coding-rule conclusions, exclusions, and uncertainty.
+- Twelve original fictional examples: six core admission/progress cases and six focused worksheet teaching cases. Prepared examples work without OpenAI and are clearly labeled as fixtures.
+- Responsive navy/white/soft-blue/teal styling, labeled controls, keyboard focus, skip link, loading/error feedback, reduced-motion support, and synthetic-data notices.
 
-| Core scenario | Problems / data / risk | Initial / subsequent potential CPT |
-| --- | --- | --- |
-| Improving uncomplicated gastroenteritis, reassessment of oral tolerance, supportive decisions | Low / Straightforward / Low | 99221 / 99231 |
-| Nonsevere COPD exacerbation with treatment decisions and active hypertension/diabetes review | Moderate / Moderate / Moderate | 99222 / 99232 |
-| Decompensated systolic heart failure with a documented respiratory organ threat and actual admission/escalation decision | High / Moderate / High | 99223 / 99233 |
+The selected initial/subsequent hospital inpatient/observation family is an explicit assumption. A note title alone does not establish service eligibility. Time-based billing is outside this MVP.
 
-Admission examples include a reason for evaluation, symptom timeline, relevant obtained ROS and history, examination, and explicit plan. Progress examples instead describe today's reason for review, attributed overnight nursing observations, patient symptoms, changes since the prior day, and decisions based on reassessment. Diagnostic results are separated from documented review activities; a listed EKG receives no activity credit. Lab panels count once. The moderate progress case specifically teaches that improvement and IV-to-oral transition do not automatically lower MDM. High risk is supported by an actual admission/escalation decision, not IV diuretics or routine response monitoring. All outcomes assume the selected hospital family and exclude a distinct critical-care or discharge service. These are coding-education fixtures, not clinical or billing validation or recommended patient treatment.
+## Technology
 
-### Danger Table Worksheet incorporation
+| Layer | Implementation |
+| --- | --- |
+| UI and server | Next.js 16 App Router, React 19, TypeScript |
+| Styling | Tailwind CSS 4 and application CSS; Lucide icons |
+| Authentication | Auth.js v5 Credentials, pinned beta; bcryptjs |
+| Database | Neon PostgreSQL; Prisma 7 with PostgreSQL adapter and `pg` |
+| AI | OpenAI Responses REST API; strict JSON Schema and Zod |
+| Rules/tests | TypeScript MDM module; Node test runner and local HTTP smoke tests |
+| Hosting | Vercel, Node.js runtime |
 
-The locally supplied `Danger Table Worksheet (1).pdf` was visually reviewed. Its diagnosis/data point totals and combined legacy risk table are not used for present-day hospital code selection. The application incorporates the teaching topics through original fictional cases, an expandable guide on the New Analysis/results pages, and extraction instructions that keep problems, data, and current management decisions distinct.
+Use Node.js 24 LTS and npm. The lockfile pins the dependency tree; use `npm ci`. There is no required OpenAI SDK package because the server uses `fetch`.
 
-The six added cases cover two stable conditions with two panel reviews, a nonsevere asthma flare, routine response monitoring, documented intensive heparin toxicity monitoring, historical DNR status, and a new prognosis-based care-limitation decision. Expected outcomes are individually specified and checked against the rule engine with exact source excerpts. The heparin example intentionally leaves aPTT data credit unresolved under the MVP's limited test catalog; two supported high elements still establish high overall MDM. The routine-monitoring and historical-DNR examples do not receive high risk from those labels alone.
+## Architecture
 
-The AMA's 2023 hospital MDM table and accompanying definitions govern these adaptations, including its distinction between efficacy checks and toxicity monitoring (printed pages 18–19) and the current management-decision criterion for resuscitation limitation. This is educational implementation review, not independent clinical/billing validation. The local reference scans are gitignored; the app does not redistribute their scanned tables.
-
-### Live AI configuration
-
-Add these server-only variables to your existing local `.env` and to the appropriate Vercel environment. Do not overwrite the working database/authentication settings.
-
-```dotenv
-OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
-OPENAI_MODEL="gpt-4.1-mini-2025-04-14"
+```mermaid
+flowchart LR
+    Browser[Browser: synthetic documentation] --> Server[Authenticated server endpoint]
+    Server --> Validation[Input validation and consent]
+    Validation --> Provider[OpenAI structured extraction]
+    Validation --> Fixture[Explicit prepared fixture]
+    Provider --> Grounding[Zod and evidence checks]
+    Fixture --> Grounding
+    Grounding --> Rules[Deterministic MDM engine]
+    Rules --> Neon[(Neon: owner-scoped analysis)]
+    Neon --> Results[Protected results and history]
+    Validation --> HPI[Separate optional HPI request]
+    HPI --> Guard[Conservative wording checks]
+    Guard --> Neon
 ```
 
-The default model snapshot supports structured output. API access/billing is separate from a ChatGPT subscription. Never paste the key into chat, commit it, or prefix it with `NEXT_PUBLIC_`. Prepared examples remain functional without an API key. Restart the local development server after changing environment settings; redeploy Vercel after changing its variables.
+HPI output never enters the coding engine. Live extraction and optional HPI requests run in parallel, each with a 40-second provider timeout; the analysis route declares a 60-second maximum duration. Database pool acquisition and queries are bounded. If provider validation or persistence fails, the endpoint returns a safe error rather than a partial saved assessment. A client connection interruption may occur after saving; the error message advises checking History before retrying.
 
-Only wholly invented documentation is allowed. An explicit acknowledgement and best-effort checks for obvious identifiers precede any provider call. These checks cannot detect all real patient information and are not de-identification or HIPAA compliance. Do not submit real notes, even with names removed. `store: false` does not constitute a promise of zero provider retention.
+Live extraction receives numbered original source spans and cites integer references instead of rewriting quotes. A transport-only schema separates clinical problems, management decisions, and explicit service-category conflicts. The server resolves references into the existing saved report contract; malformed references are rejected. Diagnoses and symptoms cannot populate service-conflict categories. An aligned initial/subsequent service does not block the user-confirmed encounter family. These references establish source traceability, not independent verification that the model interpreted a passage correctly.
 
-### Coding rule version and scope
+The model has no final CPT/overall-MDM output fields. Its clinical categories still require human review: structured output and matching excerpts do not prove clinical meaning or eliminate hallucination.
 
-The engine is `src/lib/clinical/mdm.ts`, version `hospital-mdm-2023-public-v1`, reviewed October 27, 2026. Sources are the public [AMA hospital E/M guidelines effective January 2023](https://www.ama-assn.org/system/files/2023-e-m-descriptors-guidelines.pdf), [AMA clarifications updated January 2026](https://www.ama-assn.org/practice-management/cpt/cpt-evaluation-and-management-em-revisions-faqs), and [CMS MLN006764, May 2026](https://www.cms.gov/files/document/mln006764-evaluation-management-services.pdf). This is a conservative educational subset, not an exhaustive implementation or verification of the licensed 2026 CPT manual or individual payer requirements.
+## Database design
 
-The model extracts clinical categories and physician activities; it has no final-code/overall-MDM fields. The engine evaluates the three elements and applies the two-of-three threshold. Straightforward/low map to 99221 or 99231, moderate to 99222 or 99232, and high to 99223 or 99233 under the confirmed encounter assumption. Scope conflicts or unresolved element ranges that change the overall level produce an indeterminate code.
+| Model | Purpose and important fields |
+| --- | --- |
+| `User` | ID, name, unique normalized email, password hash, timestamps |
+| `BillingAnalysis` | Authenticated owner ID, original synthetic documentation, note type/input mode, submitted input, structured report, three element levels, overall MDM, nullable potential CPT, explanation/gaps, optional HPI revision, timestamps |
+| `AuthThrottle` | Hashed subject/operation key, attempt count, 15-minute window |
 
-Data credit is activity-based. Identity grouping prevents duplicated panel components, repeated results, order-plus-review double counting, and repeated external-source/historian credit. High data requires multiple qualifying categories, not simply more results. Independent interpretations/discussions require confirmed eligibility; separate-reporting uncertainty is retained. For conservative MVP uniqueness verification, definite diagnostic-test identities are limited to blood-count panels, overlapping metabolic panels, ECG, and chest radiographs. Other tests are displayed but left unresolved. This deliberate limitation can make an assessment indeterminate; the engine does not guess unfamiliar test identities.
+`User` has many analyses. A foreign key enforces ownership association and cascades deletion; an index on `(userId, createdAt)` supports owner history. Application authorization independently filters by the current user's ID, including direct record-ID requests. Foreign IDs return 404 from the API, not another user's content. Schema additions are nullable so earlier Phase 1 analyses remain readable.
 
-Clinical problem severity/status and management criteria still depend on reviewing the original note and the extracted interpretation. Hospital location, medication lists, and abnormal values alone do not establish high management risk. HPI suggestions never enter the engine. Service eligibility, medical necessity, modifiers, critical care, consultations, discharge/same-day services, and payer edits require separate review and are outside this MVP.
+Credentials authentication uses JWT sessions, so OAuth Account/Session tables and an Auth.js database adapter are not needed. JWT logout clears the browser cookie; it is not centralized token revocation. The session helper also verifies that the account still exists.
 
-### Phase 2 database migration
+## Local setup
 
-`20261027010000_phase_two` adds nullable columns to `BillingAnalysis`, preserving users and prior records. It stores encounter/input modes, the active submitted input, versioned structured extraction/rule results, per-element complexity, gaps, and optional HPI wording; original documentation, owner ID, code/explanation, and timestamps use the existing fields. Saved reports are snapshots and are not recomputed when viewed.
-
-On a fresh database or a separate deployment database, apply all checked-in migrations:
-
-```powershell
-npm.cmd run db:generate
-npm.cmd run db:deploy
-```
-
-The existing MedCodeAI Neon database already received the additive Phase 2 migration and its checksum/history entry during implementation. The local managed environment blocks Prisma's schema-engine subprocess, so it was applied transactionally through the connected Neon service. Ordinary terminals and deployment automation should continue using `db:deploy`; do not rerun the raw SQL manually.
-
-## Requirements and packages
-
-Use Node.js 24 LTS and npm. Dependencies are declared in `package.json`: Next.js 16 / React 19, Tailwind 4, TypeScript, Auth.js (`next-auth` v5 beta, pinned), Prisma 7, `@prisma/adapter-pg`, `pg`, `bcryptjs`, Zod, Lucide icons, and `server-only`. Unit tests compile the actual TypeScript sources and run with Node's test runner in one process; typechecking is a separate required check.
-
-Auth.js Credentials uses JWT sessions; it does not create users automatically. Registration explicitly persists the user through Prisma. An Auth.js database adapter and OAuth Account/Session tables are unnecessary for this flow.
-
-## Local setup (PowerShell / VS Code terminal)
-
-From this project directory:
+Open a VS Code PowerShell terminal in the MedCodeAI folder:
 
 ```powershell
 npm.cmd ci
-# Fresh clones only: preserve an existing configured .env.
+# Only create the file if it does not already contain working settings.
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-Paste the generated value into `AUTH_SECRET` in `.env`, then configure the database connections below. Do not reuse the placeholder secret. `npm install` generates the Prisma client through `postinstall`; `npm run db:generate` can regenerate it explicitly. The dependency lockfile is included; use `npm ci` for reproducible installs.
+Put the generated random value in `AUTH_SECRET` locally. Keep it private. Configure the variables below; never replace an existing working `.env` with the example.
 
-Installation requires access to the npm registry. If running in a restricted environment, install from your regular, network-enabled terminal.
+### Environment variables
+
+All variables are server-side; none should use a `NEXT_PUBLIC_` prefix. `.env.example` contains placeholders only.
+
+| Name | Use |
+| --- | --- |
+| `DATABASE_URL` | Neon pooled PostgreSQL connection string for runtime requests |
+| `DIRECT_URL` | Neon direct/unpooled connection string for Prisma migrations |
+| `AUTH_SECRET` | At least 32 random bytes; mandatory for working authenticated sessions |
+| `AUTH_URL` | Local application origin, including its actual port; generally unset on Vercel so Auth.js infers its host |
+| `OPENAI_API_KEY` | OpenAI project API key for live analysis; not required for prepared examples |
+| `OPENAI_MODEL` | Existing configured structured-output model; default `gpt-4.1-mini-2025-04-14` |
+
+OpenAI API access/billing is separate from a ChatGPT subscription. The [configured model's official page](https://developers.openai.com/api/docs/models/gpt-4.1-mini) currently marks its snapshot deprecated. Its account availability must be confirmed before a live presentation; this audit preserved the existing configuration rather than silently migrating models.
+
+Configuration-only checks print variable names/statuses without values:
+
+```powershell
+npm.cmd run check:env
+# For a deliberately prepared-example-only demonstration:
+npm.cmd run check:env -- --prepared
+```
+
+These checks do not contact Neon or OpenAI and do not prove runtime readiness. Restart the local server after changing `.env`.
 
 ### Configure Neon
 
-1. Create a Neon PostgreSQL project and a dedicated development database/branch in the [Neon console](https://console.neon.tech). Keep demo and deployment data separate if using multiple environments.
-2. Open **Connect** for your database and database role. Copy the **pooled** PostgreSQL connection string to `DATABASE_URL`. Its hostname normally contains `-pooler`.
-3. Turn connection pooling off in the connection dialog and copy the **direct** string to `DIRECT_URL`. Prisma CLI migrations use this URL; application requests use the pooled URL.
-4. Preserve the SSL parameters supplied by Neon. If manually constructing a URL, percent-encode special characters in its password. Never paste credentials into chat or commit them.
-
-```dotenv
-DATABASE_URL="postgresql://USER:PASSWORD@YOUR-ENDPOINT-pooler.REGION.aws.neon.tech/neondb?sslmode=require"
-DIRECT_URL="postgresql://USER:PASSWORD@YOUR-ENDPOINT.REGION.aws.neon.tech/neondb?sslmode=require"
-AUTH_SECRET="YOUR_GENERATED_RANDOM_SECRET"
-AUTH_URL="http://localhost:3000"
-```
-
-Store these in the root `.env` file, which both Prisma and Next.js load. None uses the `NEXT_PUBLIC_` prefix. `.env` is gitignored. The fallback URL in `prisma.config.ts` only allows offline client generation; it is not a working database and is never used as a runtime fallback.
-
-Apply all checked-in migrations, then launch:
+1. In the Neon console, select the intended development project/branch, database and role. Prefer a separate development branch from production.
+2. Open **Connect**, enable pooling, and copy the supplied PostgreSQL string into `DATABASE_URL`. Its hostname normally includes `-pooler`.
+3. Disable pooling in the connection dialog and copy the direct string into `DIRECT_URL`.
+4. Preserve Neon's SSL parameters. Percent-encode password characters if constructing a URL manually. Do not paste either connection string into chat, issues, or screenshots.
+5. Apply the checked-in migrations against the intended development database:
 
 ```powershell
 npm.cmd run db:deploy
 npm.cmd run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), create an account, then sign in. Registration redirects to login after success. Use `npm.cmd run db:migrate -- --name describe_change` to generate future development migrations. Use `db:deploy` to apply committed migrations to deployment databases; do not use `migrate dev` there. `npm.cmd run db:studio` opens the database browser locally; only store fictional clinical notes.
+Open the **Local** URL printed by Next.js. Set `AUTH_URL` to that origin; if port 3000 is occupied and Next selects 3001, use `http://localhost:3001`. Other projects running on another port are unrelated to MedCode AI.
 
-Database connections are environment-specific. A fresh clone needs its own local `.env`; credentials are never included in the repository. If Next.js selects port 3001 because port 3000 is occupied, change `AUTH_URL` to `http://localhost:3001` and use the Local address printed by the development server.
+`db:deploy` applies committed migrations. Use `db:migrate -- --name describe_change` only to develop future migrations, never against production. The build does not migrate a database. `prisma.config.ts` has an offline generation placeholder; it is not a working runtime fallback. Phase 3 requires no schema changes or new migrations.
 
-## Structure
+### Demonstrating live analysis
 
-```text
-prisma/
-  schema.prisma                  User, BillingAnalysis, AuthThrottle
-  migrations/                    Initial and additive Phase 2 migrations
-prisma.config.ts                 Direct URL for Prisma CLI
-src/
-  app/
-    page.tsx                     Public landing page
-    (auth)/login/                Login
-    (auth)/register/             Registration
-    api/auth/[...nextauth]/      Auth.js handlers
-    api/analyses/                Authenticated creation and owner-scoped reads
-    dashboard/new/               Two documentation workflows/input modes
-    dashboard/history/           Paginated owner-only analysis history
-    dashboard/                   Protected dashboard and analysis details
-    actions.ts                   Registration, login, logout server actions
-  auth.ts                        Credentials and JWT session callbacks
-  components/                    Brand, forms, synthetic-data disclaimer
-  lib/
-    db.ts                        Server-only pooled Prisma client
-    session.ts                   Authentication and existing-user check
-    analyses.ts                  Owner-scoped data access
-    owned-analysis.ts            Testable ownership boundary
-    clinical/                    Input, schemas, extraction/HPI, rules, demos
-    throttle.ts                  Shared PostgreSQL authentication limits
-    validation.ts                Zod schemas
-  types/next-auth.d.ts            Typed session user ID
-tests/                           Auth, input, rules, provider, authorization tests
-scripts/                         Unit-test runner and local HTTP/Neon smoke test
-```
+1. Sign in and open **New analysis**.
+2. Choose a built-in fictional example, or enter an entirely invented note in either input mode.
+3. Review the selected encounter assumption and confirm both acknowledgements. Enable **Improve HPI** for an admission if desired.
+4. Choose **Run live AI analysis**. This sends the active synthetic documentation to OpenAI, then evaluates the returned clinical extraction with the separate rules engine.
+5. Review the **Live AI extraction** origin label, source excerpts, three MDM elements, potential CPT, and clarification questions. Reopen the result from History.
 
-## Verification
+**Run prepared example** remains a separate, explicitly labeled fixture action. It is never used as a silent fallback for live analysis. Edited fictional cases can still use live analysis. Old saved indeterminate results are not recalculated; submit a new analysis after these fixes are deployed.
 
-After installation:
+## Coding criteria, assumptions and limits
+
+The engine is [src/lib/clinical/mdm.ts](src/lib/clinical/mdm.ts), rule version `hospital-mdm-2023-public-v2`, reviewed October 28, 2026. Its public sources are the [AMA hospital E/M framework effective January 2023](https://www.ama-assn.org/system/files/2023-e-m-descriptors-guidelines.pdf), [AMA January 2026 clarifications](https://www.ama-assn.org/practice-management/cpt/cpt-evaluation-and-management-em-revisions-faqs), and [CMS E/M guidance, May 2026](https://www.cms.gov/files/document/mln006764-evaluation-management-services.pdf).
+
+The engine independently assesses problems, data and management risk, then requires two elements at or above the selected level. Initial care maps straightforward/low to 99221, moderate to 99222 and high to 99223; subsequent care maps to 99231/99232/99233. Unverified nonqualifying-activity exclusions also retain uncertainty. Unknown element ranges that change the overall conclusion, nonclinical input, or explicit encounter conflicts produce an indeterminate result. Conflicting categories for the same illness require clarification rather than letting extraction order select its severity.
+
+Data credit requires documented qualifying physician activities. Order/review of one test, repeated values, overlapping panels, duplicate external sources and multiple historians are not automatically additive. Independent interpretation and external discussion have separate eligibility requirements. Many results alone cannot establish extensive data.
+
+Definite test identity recognition is deliberately limited to blood-count panels, overlapping metabolic panels, ECG and chest radiographs. Other studies remain visible but unresolved. Eligibility, separate reporting, actual interactive discussions, severity, medical necessity and source interpretation require human review. Location, diagnosis count, a medication list, existing DNR status, and routine treatment-response checks alone do not establish high management risk.
+
+This is a conservative educational subset, **not** an exhaustive licensed 2026 CPT implementation or payer certification. Consultations, critical care, time-based services, discharge/same-day services, ACP, modifiers, facility DRGs and ICD-10 coding are outside the engine's scope. Current rules must not be applied retrospectively to actual 2020?2021 claims.
+
+### Documentation and fictional examples
+
+The six core cases cover improving gastroenteritis, nonsevere COPD exacerbation with active chronic-disease review, and decompensated heart failure with a documented respiratory threat and actual admission/escalation decision. They include explicit encounter purpose, source-attributed history, examination, diagnostic information and current decisions. Expected results are individually specified; their labels do not determine their outcomes.
+
+Six additional teaching cases cover two stable illnesses/two panel reviews, nonsevere asthma flare, routine monitoring, intensive heparin toxicity monitoring, historical DNR status and a new prognosis-based care-limitation decision. The heparin case intentionally retains unresolved aPTT identity credit; two other high elements can establish high overall MDM.
+
+Historical local E/M sheets and the Danger Table Worksheet supplied teaching topics, not governing point totals or copied case text. Raw root-level PDFs/Word notes stay excluded from new Git additions; `.gitignore` does not remove documents already committed in past history. Identifiable clinical reference records and their local review remain outside the app, example fixtures and public portfolio.
+
+Progress guidance teaches the reason for today's review, attributed interval history and explicit daily decisions. A clarification helper may ask neutral questions about vague phrases, but never changes coding inputs, completeness flags, or levels. Stable conditions may still be addressed by reasoned continuation of treatment. Improvement or changing IV medication to oral treatment does not automatically determine MDM. Old history/exam bullet counts and new/established problem points do not govern current hospital code selection.
+
+HPI checks require original excerpts, source quotes, preserved vocabulary/numbers/negation, and preserved clinical word/number sequences within sentences. They reject tested negation and quantity swaps, while permitting sentence reordering and limited grammar changes. They may withhold valid paraphrases and do not validate clinical semantics, chronology, or attribution. Every suggestion needs human comparison with the original. Saved historical reports retain their original rule version and findings.
+
+## Security and privacy
+
+- Passwords are hashed, never stored as plaintext. Registration/login validation includes bcrypt's 72-byte limit.
+- Auth.js handles authentication cookies/protections; Next server actions validate origins. API mutations independently require same-origin JSON, an authenticated account, bounded input and synthetic/encounter acknowledgements.
+- Server session ownership controls creation, list, history, detail pages and direct-ID API access. Client-supplied ownership fields are rejected.
+- Shared PostgreSQL limits allow five registrations or ten logins per email, ten live analyses per account, or twenty prepared examples per account in 15 minutes. These are demo safeguards, not comprehensive distributed/IP abuse protection.
+- Secrets stay server-side. Logs contain safe categories, not submitted documentation, provider payloads, passwords or raw database exceptions.
+- OpenAI calls use `store: false`; this is not a zero-retention guarantee. Best-effort identifier rejection is not de-identification and cannot establish that documentation is fictional.
+- Security headers include `nosniff`, frame denial and referrer policy. Protected pages discourage indexing; private analysis API responses disable caching.
+- Never use this application for real patient care or billing. There is no HIPAA-compliance claim.
+
+## Testing
 
 ```powershell
 npm.cmd run lint
@@ -176,52 +189,133 @@ npm.cmd run typecheck
 npm.cmd test
 npm.cmd exec prisma validate
 npm.cmd run build
+npm.cmd audit --omit=dev
 ```
 
-Unit tests cover email normalization, malformed input, required synthetic-data acknowledgement, required matching password confirmation, bcrypt's 72-byte limit (including multi-byte characters), and password hash verification. Typecheck and build generate Prisma first. No live database is needed to compile public pages; a configured database is needed for authentication and dashboard requests.
+For local HTTP/Neon checks, keep the app running in another terminal:
 
-Manual acceptance checks after applying the migration:
+```powershell
+# Match the actual local app origin; never target production.
+$env:MEDCODE_TEST_URL = "http://localhost:3001"
+npm.cmd run test:auth
+npm.cmd run test:integration
+```
 
-1. Visit `/dashboard` while logged out; expect a redirect to `/login`.
-2. Register with invalid email, fewer than 12 password characters, missing/mismatched password confirmation, or an unchecked acknowledgement; expect validation feedback. Repeat with valid input; expect the login page and success notice.
-3. Try a duplicate email, a wrong password, and an unknown account; expect a generic error. Registration stores only `passwordHash`, never the submitted password.
-4. Log in and verify the dashboard greeting and empty state. Refresh to verify the session. Sign out, then navigate directly to dashboard URLs; they must require login again.
-5. Create two demo accounts. Save a prepared example as A. B must not see it in History; `/api/analyses/RECORD_ID` as B returns 404, and the details page renders a not-found view with no private note content. App Router may return an already-streamed 200 shell for a not-found page; the API retains a strict 404.
-6. Make more than ten login attempts for the same normalized email within 15 minutes; expect rejection until the window expires. Registration allows five attempts per email per 15 minutes. Limits are shared across app instances.
-7. Check narrow/mobile layouts and keyboard-only navigation. Test workflow/mode switching without losing drafts, optional HPI, empty input, both acknowledgements, prepared vs. edited examples, and provider error states. Use only entirely synthetic notes.
+`test:auth` submits the real registration/login/logout server-action forms over HTTP, verifies hashed persistence, wrong-password/duplicate rejection, session refresh and protected redirects. `test:integration` saves all twelve fictional cases across both input modes, reopens complete reports/HPI, tests cross-user direct-ID/history denial and rejects invalid/empty/forged/identifier-containing/edited-fixture submissions. It uses locally signed sessions for the two ownership-test accounts; the separate auth test exercises actual Credentials login.
 
-The test suite covers all twelve explicitly specified case expectations, all 64 definite MDM element combinations, uncertain/missing evidence, data deduplication, original HPI safeguards, strict provider output/refusal/error handling, input size/consent, worksheet adaptations, and ownership. Progress-note clarification tests also verify source-grounded questions, deduplication, and unchanged coding inputs and conclusions. `npm test` requires no database or paid provider calls.
+Both scripts target localhost only, create uniquely named temporary accounts, and remove only their own accounts, analyses and throttle entries. They use the locally configured database, so select the intended development branch first. They never call OpenAI. `npm test` must run first to compile the integration fixtures.
 
-Progress Note forms and results include a collapsible guide to the reason for today's review, attributed interval history, and explicit daily decisions. Live extraction considers the whole note before raising gaps and does not assume that improvement or unchanged treatment establishes a particular level. A separate educational helper adds conditional, source-grounded questions for common vague phrases such as "patient stable", "continue POC", and "per cardiology". These phrase prompts are not a completeness detector or coding rules: they only append clarification questions, never change clinical findings, completeness flags, MDM levels, or CPT codes. Existing saved reports retain their original questions; newly saved progress analyses receive the prompts. No schema migration or new environment variables are required.
+The optional `npm.cmd run test:live` sends two built-in fictional cases through the local authenticated analysis endpoint, including one optional HPI request. It calls the paid API and removes its temporary account/results. Run it only after the API account has credits; provider/billing failure intentionally fails this check. The harness also exits with status 2 if a live case differs from its reviewed fixture code, even when transport and persistence pass. It does not force a result or replace the model with a fixture. No successful live-model test is implied by prepared examples. For the broader opt-in check, run `npm.cmd run test:live -- --core`: it sends all six core fictional cases plus one incomplete control, with optional HPI for the three admissions. This incurs API usage; it does not submit reference documents or existing saved notes.
 
-For HTTP/database verification, run `npm test`, start the local app in another terminal, then run `npm run test:integration`. It uses `AUTH_URL` (or `MEDCODE_TEST_URL`) and must target localhost. It creates two temporary test accounts, saves all twelve prepared examples across both input modes, checks owner-only API/pages/history and anonymous/cross-origin rejection, then removes only its own accounts and records. It never invokes OpenAI. The test uses locally signed test sessions to exercise the real Auth.js session boundary; it does not replace testing the registration/login forms manually.
+Unit tests exercise all 64 definite MDM combinations, deduplication, incomplete/uncertain/contradictory findings, exact evidence, provider refusals/invalid output, HPI safeguards, synthetic input validation and authorization. Fixture and mocked-provider tests do not establish model quality, hallucination freedom, clinical accuracy or billing validation.
 
-On managed Windows environments that block build subprocesses, use the opt-in worker-thread build path without disabling typechecking:
+On a managed Windows machine that blocks build subprocesses:
 
 ```powershell
 npm.cmd run build:managed
 ```
 
-This opt-in path uses `.next-managed` output to avoid OneDrive locks or collisions with a running dev server. Vercel and normal developer terminals use the default `npm run build`. Live model quality, refusal behavior for arbitrary real-world inputs, and clinical/coding validity are not established by fixture or mocked transport tests.
+This opt-in worker-thread path keeps typechecking enabled and writes `.next-managed`. Normal terminals and Vercel should use the standard `npm run build`. Do not set `MEDCODE_BUILD_WORKER_THREADS` in Vercel. The managed build passing does not independently certify the standard Vercel build.
 
-## Publishing to GitHub
+## Phase 3 verification ? October 28, 2026
 
-Initialize the project in VS Code's Source Control panel, review the files, and use **Publish to GitHub**. A private repository is a useful default while the demo is in development.
+Prioritized findings:
 
-Commit source files, Prisma migrations, `package.json`, `package-lock.json`, and `.env.example`. The `.gitignore` excludes `.env`, `node_modules`, generated Prisma files, build output, and local tooling caches. Keep real database URLs and authentication secrets out of commits, screenshots, and issue reports. Publishing the code to GitHub does not deploy the application; deployment is a separate step.
+| Priority | Finding | Status |
+| --- | --- | --- |
+| P1 | Live OpenAI was initially blocked by exhausted credits | Resolved after the owner added credits: both local workflows now return structured responses and save/reopen successfully; Vercel variables not inspected |
+| P1 | Live extraction confused presenting complaints with encounter conflicts, paraphrased citations, and could omit supportive management | Fixed: typed source-cited service conflicts, numbered original passages, explicit management decisions, and clearer completeness definitions. Latest live check matched all six core CPT expectations plus an indeterminate incomplete control; model interpretation still requires review |
+| P1 | Conflicting severity entries for one illness could depend on extraction order | Fixed: remove conflicting definite credit and retain uncertainty; regression tested |
+| P1 | HPI vocabulary/negation totals alone could allow negation or quantities to move between facts | Fixed: conservative sentence fact-sequence guard; regression tested; semantic review still required |
+| P2 | Saved-analysis API could emit an unhandled database exception | Fixed: safe JSON 503 and private/no-store response; outage path code-reviewed, not fault-injected against Neon |
+| P2 | Default authentication logging could include nested database errors | Fixed: categorical Auth.js error logging |
+| P2 | Crafted section submissions could retain inactive workflow fields in submitted input | Fixed: server persists only active fields; HTTP regression verifies hidden drafts are discarded |
+| P2 | New sample could retain consent to a different encounter family | Fixed: loading any sample resets encounter confirmation |
+| P2 | History needed the same prominent safety notice; long select/grid content could resist mobile shrinking | Fixed: disclaimer and minimum-width constraints; visual/mobile acceptance pending |
+| P2 | Exhausted API credits were reported as a generic quota/rate limit | Fixed: actionable billing/credit message, separate from retryable rate limits |
+| P2 | Portfolio documentation lacked a concise architecture, data model and release evidence | README reorganized; reproducible auth/configuration checks added |
 
-## Vercel deployment preparation
+Verification evidence:
 
-Import this project into Vercel as a Next.js application after pushing it to your repository. Use Node.js 24, the standard install command, and `npm run build`. Set `DATABASE_URL`, `DIRECT_URL`, and `AUTH_SECRET` as server environment variables. Add `OPENAI_API_KEY` and `OPENAI_MODEL` for live analysis. Auth.js v5 infers the Vercel host, so `AUTH_URL` can remain unset there; never copy a localhost URL into Vercel. Use a different secret/database branch for unrelated environments.
+| Check | Result and limit |
+| --- | --- |
+| Unit tests | 80 passed; includes all twelve fixtures and 64 MDM combinations |
+| Lint and TypeScript | Passed |
+| Prisma schema validation | Passed |
+| Standard production build | Compiled; TypeScript subprocess blocked by local `spawn EPERM` |
+| Managed production build | Passed, including TypeScript and route generation |
+| Authentication HTTP/Neon test | Passed actual registration, login, refreshed session, logout and protected redirects; temporary data removed |
+| Analysis HTTP/Neon test | Passed twelve saves/reopens, both workflows/modes, owner isolation and invalid-input rejection; temporary data removed |
+| Migration consistency | Both checked-in migration checksums match completed Neon ledger entries; expected columns, indexes and cascade foreign key inspected |
+| Runtime dependencies | `npm audit --omit=dev`: zero reported vulnerabilities at review time |
+| Browser bundle secret check | No configured database/auth/API secret values found in generated browser assets |
+| Configuration preflight | Both modes pass after owner added the local API key; values were not printed |
+| Existing public Vercel deployment | Landing/login/register HTTP 200 with notice; anonymous dashboard redirects to login; direct-ID API returns 401; anonymous session is null; basic security headers present |
+| Browser interaction/screenshots | Automated Edge launch blocked by Windows sandbox; visual, keyboard and state-switch checks remain manual |
+| Live AI transport/persistence | All six core synthetic cases passed strict response validation, traceable definite findings, save/reopen and deterministic recomputation across both workflows/modes. All three admission HPI suggestions passed the conservative checks. Temporary accounts/results removed |
+| Limited live case acceptance | Latest seven-case run passed: admissions 99221/99222/99223, progress 99231/99232/99233, and incomplete progress documentation indeterminate. Earlier failures exposed the extraction defects above. Some element interpretations remain uncertain; a successful smoke run is not clinical/billing validation or a guarantee for other notes |
+| Authenticated production data | Not verified; no production configuration, deployment or infrastructure changed |
 
-Apply all migrations using `npm run db:deploy` against the target database before testing. The default build intentionally does not migrate databases. Auth.js recognizes Vercel's host environment; only enable `AUTH_TRUST_HOST=true` on other hosts when the host/proxy is trusted. Never disable secure cookies for an HTTPS deployment. Redeploy after saving environment variables, then test the newly deployed URL.
+Migration ledger/column inspection is not an exhaustive Prisma schema-drift proof. Native `prisma migrate status`/drift tooling should be run from a normal permitted terminal before a release. No migration was applied during Phase 3.
 
-This phase does not deploy or publish the app. Email verification, password recovery, account deletion, MFA, and distributed IP-based abuse protection are outside Phase 1. The per-email throttle is useful for a demo but does not prevent attacks spread across many email addresses. Old throttle keys may be periodically removed from the database. Disabling an account requires deleting it; rotating `AUTH_SECRET` invalidates all JWT sessions. Logout clears the browser session but is not centralized token revocation.
+**Readiness:** both prepared mode and live analysis of the six core fictional cases work locally. The live incomplete-documentation control remains indeterminate. The form makes Run live AI analysis the primary action; its results are new provider responses, not substituted fixtures. Final portfolio sign-off still requires browser acceptance and authenticated/live checks on the approved Vercel deployment. Production database connectivity is not established by public-page checks alone. AI interpretations still require review, and other notes may correctly return indeterminate results.
 
-## Reference documentation
+## Vercel release
 
-- [Next.js authentication and data access guidance](https://nextjs.org/docs/app/guides/authentication)
-- [Auth.js Credentials provider](https://authjs.dev/getting-started/authentication/credentials)
-- [Prisma PostgreSQL configuration and pooled/direct connections](https://www.prisma.io/docs/orm/v7/core-concepts/supported-databases/postgresql)
-- [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses)
-- [Configured default model and supported output formats](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+**Owner approval is required before deployment or production infrastructure changes.** Pushing `main` may trigger the existing Vercel Git integration, so treat that push as a release action. Phase 3 has not been pushed or deployed by this audit.
+
+After approval:
+
+1. Review the changed source, tests and README. Keep `.env`, raw clinical records, local reports and `.npm-cache` out of commits.
+2. In Vercel, verify the intended project, Git branch, Node.js 24 runtime and standard `npm run build` command. Keep the managed-Windows flag unset.
+3. Set `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, and, for live AI, `OPENAI_API_KEY`/`OPENAI_MODEL` in the intended Production/Preview environments. Use separate development/preview database branches where practical. Never use `NEXT_PUBLIC_` names for these values.
+4. Do not copy a localhost `AUTH_URL` to Vercel. Auth.js normally infers the Vercel host; if explicitly configured, use the correct stable HTTPS domain and handle previews separately. Auth.js host-trust behavior is described in its [deployment documentation](https://authjs.dev/getting-started/deployment). Do not disable secure cookies.
+5. From an authorized ordinary terminal, run `npm.cmd exec prisma migrate status` against the intended target. Phase 3 adds no migration; apply pending committed migrations with `db:deploy` only after confirming the target and approval. Never use `migrate dev` in production.
+6. Trigger the approved deployment. Environment changes require redeployment. Check that Vercel accepts the route's 60-second maximum duration under the project's [function settings](https://vercel.com/docs/functions/configuring-functions/duration).
+7. Run the manual checklist below on the new deployment. Check sanitized runtime logs when diagnosing errors; do not paste notes, cookies or secrets into issues.
+
+### Final manual acceptance
+
+- Register, sign in, refresh, sign out, and revisit a protected URL using the final HTTPS domain. Check that authentication cookies are Secure/HttpOnly.
+- At phone and desktop widths, use only the keyboard to reach navigation, radios, fields, collapsible sections, submit controls, error messages and copy action; check contrast, focus and horizontal overflow.
+- In both workflows, type distinct drafts in Full Note and Separate Sections, switch back and forth, and verify preservation while mounted. Confirm all diagnostic sections and A&P are usable. Changing samples must request replacement and reset encounter confirmation.
+- Submit empty/incomplete synthetic documentation, missing acknowledgements, edited examples, and normal prepared cases; check visible feedback, loading/disabled controls, results and History.
+- With a configured API key, analyze an entirely invented admission with HPI enabled and an invented progress note. Review the actual response/evidence, omissions, uncertainty and saved report. Rewording unchanged HPI facts must not independently affect coding. An indeterminate outcome may be correct.
+- With a second synthetic account, verify saved history and direct URLs/API IDs remain inaccessible. Do not put session cookies in screenshots.
+- Reopen the saved live result after refresh to verify production Neon persistence. A public landing page alone does not test the database.
+
+## Screenshots and presentation
+
+Actual browser screenshots are pending manual capture; none are fabricated. Capture only fictional examples and synthetic account names. Suggested GitHub assets under `docs/screenshots/`:
+
+| Suggested file | Capture |
+| --- | --- |
+| `landing.png` | Tagline, product explanation and synthetic-data notice |
+| `new-analysis.png` | Both workflow choices, input-mode selector and prepared example |
+| `results.png` | Potential code, separate MDM elements, evidence and uncertainty |
+| `history.png` | Saved fictional cases owned by one demonstration account |
+| `mobile.png` | Phone-width form or results with readable controls |
+
+Add Markdown image links after the real files exist. Exclude developer tools, environment settings, identifiers and tokens. For a short portfolio walkthrough: sign in, load a fictional case, run its prepared extraction, explain the three elements/evidence, show clarification questions/HPI, and reopen it from History. Clearly identify prepared mode; use live mode only after it has passed the release checks.
+
+## Repository map
+
+```text
+prisma/schema.prisma             User, BillingAnalysis, AuthThrottle
+prisma/migrations/               Initial and additive Phase 2 SQL
+src/auth.ts                      Auth.js Credentials/JWT callbacks
+src/app/actions.ts               Registration, login, logout server actions
+src/app/api/analyses/             Authenticated create and owner-only reads
+src/app/dashboard/               Dashboard, form, saved results, history
+src/components/                  Forms, results, learning guides, disclaimer
+src/lib/clinical/                Input, contracts, source references, AI, rules, demos
+src/lib/session.ts               Authenticated existing-user check
+src/lib/analyses.ts               User-scoped data access
+src/lib/throttle.ts               Shared PostgreSQL limits
+scripts/                         Unit runner, config/auth/integration/live checks
+tests/                          Rules, input, HPI, provider, ownership regressions
+```
+
+## Future roadmap
+
+After the portfolio deadline: independent coding/content review against the licensed applicable CPT edition and payer policies; a broader verified diagnostic-test catalog; live-model evaluations and adversarial evidence/HPI cases; browser accessibility automation; verified email/password recovery and account deletion; stronger abuse controls and operational monitoring. These are future work, not shipped capabilities. Real patient use would require a separately designed, reviewed and governed product.

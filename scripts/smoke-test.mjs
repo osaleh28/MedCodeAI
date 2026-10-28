@@ -36,6 +36,8 @@ try {
   for (const [index, sample] of demoCases.entries()) {
     const inputMode = index % 2 ? "sections" : "full";
     const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), syntheticOnly: true, encounterConfirmed: true, improveHpi: sample.noteType === "admission", providerMode: "prepared_demo", sampleId: sample.id };
+    const inactiveKey = sample.noteType === "admission" ? "intervalHistory" : "hpi";
+    input.sections = { ...input.sections, [inactiveKey]: "Inactive fictional draft must not be retained." };
     const response = await fetch(url("/api/analyses"), { method: "POST", headers: aHeaders, body: JSON.stringify(input) });
     const result = await response.json();
     assert.equal(response.status, 201, `Prepared creation failed: ${result.error || response.status}`);
@@ -46,6 +48,8 @@ try {
     assert.equal(record.syntheticNote, sample.note);
     assert.equal(record.noteType, sample.noteType);
     assert.equal(record.inputMode, inputMode);
+    assert.ok(!(inactiveKey in record.submittedInput.sections));
+    if (inputMode === "full") assert.deepEqual(record.submittedInput.sections, {});
     assert.equal(record.suggestedCptCode, sample.expected.code);
     assert.equal(record.structuredAnalysis.origin, "prepared_demo");
     assert.equal(record.structuredAnalysis.mdm.overall, sample.expected.overall);
@@ -76,6 +80,27 @@ try {
   assert.ok(!(await otherHistory.text()).includes(saved[0]));
   const crossOrigin = await fetch(url("/api/analyses"), { method: "POST", headers: { ...aHeaders, Origin: "https://untrusted.example" }, body: "{}" });
   assert.equal(crossOrigin.status, 403);
+  const sample = demoCases[0];
+  const validInput = { noteType: sample.noteType, inputMode: "full", fullNote: sample.note, sections: sample.sections, syntheticOnly: true, encounterConfirmed: true, improveHpi: false, providerMode: "prepared_demo", sampleId: sample.id };
+  for (const input of [
+    { ...validInput, fullNote: "", sections: {} },
+    { ...validInput, syntheticOnly: false },
+    { ...validInput, encounterConfirmed: false },
+    { ...validInput, userId: ids[1] },
+    { ...validInput, fullNote: "MRN: 123456" },
+    { ...validInput, fullNote: sample.note + " Edited documentation." },
+  ]) {
+    const response = await fetch(url("/api/analyses"), { method: "POST", headers: aHeaders, body: JSON.stringify(input) });
+    assert.equal(response.status, 400);
+    assert.equal(typeof (await response.json()).error, "string");
+  }
+  const malformed = await fetch(url("/api/analyses"), { method: "POST", headers: aHeaders, body: "{broken" });
+  assert.equal(malformed.status, 400);
+  const missing = await fetch(url("/api/analyses/nonexistent"), { headers: aHeaders });
+  assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get("Cache-Control"), "private, no-store");
+  assert.equal((await db.query('SELECT COUNT(*)::int AS count FROM "BillingAnalysis" WHERE "userId"=$1', [ids[0]])).rows[0].count, demoCases.length);
+  console.log("PASS invalid/empty input, missing acknowledgements, forged ownership, identifiers, modified fixtures, malformed JSON, missing records, and no unintended saves.");
   const newPage = await fetch(url("/dashboard/new"), { headers: aHeaders });
   assert.equal(newPage.status, 200);
   const newHtml = await newPage.text();

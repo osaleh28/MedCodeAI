@@ -1,13 +1,13 @@
 import { currentUser } from "@/lib/session";
 import { getDb } from "@/lib/db";
 import { allowAuthAttempt } from "@/lib/throttle";
-import { analysisInputSchema, containsObviousIdentifiers, normalizeDocumentation, noteLabels } from "@/lib/clinical/input";
+import { analysisInputSchema, containsObviousIdentifiers, normalizeDocumentation, noteLabels, sectionKeys } from "@/lib/clinical/input";
 import { groundExtraction, validateHpi } from "@/lib/clinical/contracts";
 import { InputError, readLimitedJson, sameOrigin } from "@/lib/clinical/api-input";
 import { resolvePreparedCase } from "@/lib/clinical/demos";
 import { evaluateMdm } from "@/lib/clinical/mdm";
 import { extractClinicalDocumentation, getAiConfiguration, improveHpi } from "@/lib/clinical/openai";
-import { ProviderError } from "@/lib/clinical/provider-client";
+import { ProviderError, providerErrorMessage } from "@/lib/clinical/provider-client";
 import { reportSchema } from "@/lib/clinical/report";
 import { addProgressClarifications } from "@/lib/clinical/progress-guidance";
 
@@ -44,7 +44,9 @@ export async function POST(request: Request) {
     const record = await getDb().billingAnalysis.create({ data: {
       userId: user.id, title: prepared?.title ?? `${noteLabels[input.noteType]} analysis`,
       syntheticNote: note, syntheticDataConfirmed: true, noteType: input.noteType, inputMode: input.inputMode,
-      submittedInput: { fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? input.sections : {} },
+      // Enforce active-field persistence on the server as well as the form.
+      // A crafted request must not retain an inactive workflow's hidden draft.
+      submittedInput: { fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? Object.fromEntries(sectionKeys(input.noteType).map((key) => [key, input.sections[key]])) : {} },
       structuredAnalysis: report, problemsComplexity: mdm.problems.level ?? "Indeterminate", dataComplexity: mdm.data.level ?? "Indeterminate", riskComplexity: mdm.risk.level ?? "Indeterminate",
       mdmComplexity: mdm.overall ?? "Indeterminate", suggestedCptCode: mdm.potentialCode, rationale: mdm.explanation,
       documentationGaps: extraction.gaps, hpiRevision: hpi?.suggestedHpi || null,
@@ -54,15 +56,7 @@ export async function POST(request: Request) {
     if (error instanceof InputError) return json({ error: error.message }, 400);
     if (error instanceof ProviderError) {
       console.error("[analysis] AI request failed", { category: error.code, status: error.status, providerCode: error.providerCode });
-      const messages = {
-        configuration: "Live AI analysis is currently unavailable. You can run an unchanged prepared example or try again later.",
-        timeout: "The AI request timed out. Nothing was saved. Please try again later.",
-        refusal: "The AI provider could not process this documentation. Nothing was saved. Try a fictional demonstration case.",
-        invalid_output: "The AI response could not be validated. Nothing was saved or assigned a code. Please try again later.",
-        unavailable: "The AI service is unavailable. Nothing was saved. Please try again later.",
-        quota: "The AI provider's quota or rate limit was reached. Please try later or run a prepared example.",
-      };
-      return json({ error: messages[error.code] }, error.code === "quota" ? 429 : error.code === "configuration" ? 503 : 502);
+      return json({ error: providerErrorMessage(error) }, error.code === "quota" ? 429 : error.code === "configuration" ? 503 : 502);
     }
     // No raw exceptions, SQL parameters, note text, credentials, or provider payloads.
     console.error("[analysis] Request failed", { category: error instanceof Error ? error.name : "UnknownError" });
