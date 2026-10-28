@@ -4,22 +4,23 @@
 
 MedCode AI is a full-stack portfolio application for learning how hospitalist documentation supports medical decision-making (MDM) and potential hospital E/M CPT codes. It separates AI-assisted interpretation from a deterministic TypeScript rules engine and shows the evidence and uncertainty behind each assessment.
 
-> Portfolio demonstration only. Synthetic clinical data only. Not intended for patient care or actual billing decisions.
+> Portfolio demonstration only. Fictional or fully de-identified notes only. Not intended for patient care or actual billing decisions.
 
-**Never enter real patient information, including real notes with names removed.** This application is not HIPAA-compliant and has not been clinically or billing validated.
+**Never enter identifying patient information.** Real-case notes must be fully de-identified before entering this app, not merely have names removed. Users must be authorized to use them. Automated screening cannot certify de-identification; see [HHS guidance](https://www.hhs.gov/hipaa/for-professionals/special-topics/de-identification/index.html). This application is not HIPAA-compliant and has not been clinically or billing validated.
 
 [Existing public deployment](https://med-code-ai-eight.vercel.app) ? [Phase 3 verification](#phase-3-verification--october-28-2026) ? [Local setup](#local-setup) ? [Vercel release](#vercel-release)
 
-The existing deployment does not automatically include uncommitted Phase 3 changes. Deployment requires owner approval.
+The existing deployment does not automatically include these uncommitted import/source-selection changes. Deployment requires owner approval.
 
 ## Problem statement
 
-Clinical documentation can be lengthy without clearly showing which problems were addressed, which diagnostic activities occurred, or which management decisions were made. MedCode AI lets learners examine fictional notes, distinguish those elements, and ask clarification questions without inventing missing work or treating clearer wording as justification for a higher code.
+Clinical documentation can be lengthy without clearly showing which problems were addressed, which diagnostic activities occurred, or which management decisions were made. MedCode AI lets learners examine fictional or fully de-identified notes, distinguish those elements, and ask clarification questions without inventing missing work or treating clearer wording as justification for a higher code.
 
 ## Features
 
 - Email/password registration with password confirmation, normalized email, bcrypt hashing at cost 12, Auth.js Credentials login/logout, and eight-hour JWT sessions.
 - Protected dashboard, paginated History, and saved analyses scoped to the authenticated user in every data query.
+- Fictional or fully de-identified real-case source declarations, explicit privacy checks, and browser-only PDF/DOCX/TXT extraction with an editable review step. Original files and filenames are not uploaded.
 - Admission H&P and Progress Note workflows; full-note input or optional collapsible sections. In-memory drafts survive mode switches while the form remains mounted. Only active fields are submitted.
 - Laboratory, cardiac, imaging, other diagnostic studies, data activities, history/examination, and assessment/plan fields. At least one active documentation field is required.
 - Optional HPI organization with original/suggested wording, source evidence, clarification questions, and a copy action. Original documentation is never overwritten.
@@ -27,7 +28,7 @@ Clinical documentation can be lengthy without clearly showing which problems wer
 - Separate problems/data/risk assessments, a two-of-three MDM calculation, potential encounter-family CPT mapping, and indeterminate results where uncertainty changes the conclusion.
 - Progressive results showing source facts, clinical interpretations, coding-rule conclusions, exclusions, and uncertainty.
 - Twelve original fictional examples: six core admission/progress cases and six focused worksheet teaching cases. Prepared examples work without OpenAI and are clearly labeled as fixtures.
-- Responsive navy/white/soft-blue/teal styling, labeled controls, keyboard focus, skip link, loading/error feedback, reduced-motion support, and synthetic-data notices.
+- Responsive navy/white/soft-blue/teal styling, labeled controls, keyboard focus, skip link, loading/error feedback, reduced-motion support, and privacy notices.
 
 The selected initial/subsequent hospital inpatient/observation family is an explicit assumption. A note title alone does not establish service eligibility. Time-based billing is outside this MVP.
 
@@ -49,7 +50,7 @@ Use Node.js 24 LTS and npm. The lockfile pins the dependency tree; use `npm ci`.
 
 ```mermaid
 flowchart LR
-    Browser[Browser: synthetic documentation] --> Server[Authenticated server endpoint]
+    Browser[Browser: reviewed fictional or de-identified text] --> Server[Authenticated server endpoint]
     Server --> Validation[Input validation and consent]
     Validation --> Provider[OpenAI structured extraction]
     Validation --> Fixture[Explicit prepared fixture]
@@ -74,7 +75,7 @@ The model has no final CPT/overall-MDM output fields. Its clinical categories st
 | Model | Purpose and important fields |
 | --- | --- |
 | `User` | ID, name, unique normalized email, password hash, timestamps |
-| `BillingAnalysis` | Authenticated owner ID, original synthetic documentation, note type/input mode, submitted input, structured report, three element levels, overall MDM, nullable potential CPT, explanation/gaps, optional HPI revision, timestamps |
+| `BillingAnalysis` | Authenticated owner ID, original reviewed documentation, note type/input mode, submitted input, structured report, three element levels, overall MDM, nullable potential CPT, explanation/gaps, optional HPI revision, timestamps |
 | `AuthThrottle` | Hashed subject/operation key, attempt count, 15-minute window |
 
 `User` has many analyses. A foreign key enforces ownership association and cascades deletion; an index on `(userId, createdAt)` supports owner history. Application authorization independently filters by the current user's ID, including direct record-ID requests. Foreign IDs return 404 from the API, not another user's content. Schema additions are nullable so earlier Phase 1 analyses remain readable.
@@ -139,12 +140,22 @@ Open the **Local** URL printed by Next.js. Set `AUTH_URL` to that origin; if por
 ### Demonstrating live analysis
 
 1. Sign in and open **New analysis**.
-2. Choose a built-in fictional example, or enter an entirely invented note in either input mode.
-3. Review the selected encounter assumption and confirm both acknowledgements. Enable **Improve HPI** for an admission if desired.
-4. Choose **Run live AI analysis**. This sends the active synthetic documentation to OpenAI, then evaluates the returned clinical extraction with the separate rules engine.
+2. Choose a built-in fictional example, enter a fictional note, or select **De-identified real-case note** for material already fully de-identified. Both input modes support live analysis. PDF, DOCX and TXT imports show editable extracted text before applying it to the full-note draft.
+3. Review the selected encounter assumption and confirm the encounter and privacy acknowledgements. Real-case notes require an additional de-identification confirmation. Enable **Improve HPI** for an admission if desired.
+4. Choose **Run live AI analysis**. This sends the active reviewed documentation to OpenAI, then evaluates the returned clinical extraction with the separate rules engine.
 5. Review the **Live AI extraction** origin label, source excerpts, three MDM elements, potential CPT, and clarification questions. Reopen the result from History.
 
 **Run prepared example** remains a separate, explicitly labeled fixture action. It is never used as a silent fallback for live analysis. Edited fictional cases can still use live analysis. Old saved indeterminate results are not recalculated; submit a new analysis after these fixes are deployed.
+
+### Note imports and source declarations
+
+PDF, Word .docx and UTF-8 .txt files are read locally in the browser. Their binary content and filenames are never sent to the server. Only the reviewed, active text is sent for analysis and stored with the result. Browser extraction uses PDF.js text extraction and Mammoth raw-text extraction; it never renders uploaded HTML. Limits: 5 MB per file, 40 PDF pages, 24,000 extracted characters, bounded declared DOCX archive size. Scanned/image-only PDFs require OCR outside this app. Encrypted, corrupt and legacy .doc files are unsupported. Review extraction order, missing tables and all clinical meaning; file conversion is not clinical validation.
+
+The form has fictional and de-identified source choices. The latter is a user declaration, not a privacy certification. Client/server screening rejects some obvious identifiers, including labeled names/record IDs, contact details and calendar dates. It does not detect every name, location or identifying context. De-identify outside this application first; do not paste identifiable notes for the app to clean. Editing text or switching input/source modes resets privacy acknowledgements. Existing separate-section drafts are preserved when importing into the full-note draft.
+
+Source and acknowledgements are saved in existing JSON fields, so no migration is required. The legacy database field name `syntheticNote` now holds the submitted permitted documentation; `syntheticDataConfirmed` is true only for the fictional source. Older structured reports default to fictional. Results display the declared source. Source choice does not enter the MDM engine or change CPT thresholds.
+
+If Vercel says live AI is not configured, verify **OPENAI_API_KEY** is enabled for **Production**, contains only the working key (no quotes or `OPENAI_API_KEY=` prefix), then redeploy. Saving an environment variable does not update a running deployment; see [Vercel environment-variable instructions](https://vercel.com/docs/environment-variables/managing-environment-variables). Never commit the key.
 
 ## Coding criteria, assumptions and limits
 
@@ -173,11 +184,11 @@ HPI checks require original excerpts, source quotes, preserved vocabulary/number
 ## Security and privacy
 
 - Passwords are hashed, never stored as plaintext. Registration/login validation includes bcrypt's 72-byte limit.
-- Auth.js handles authentication cookies/protections; Next server actions validate origins. API mutations independently require same-origin JSON, an authenticated account, bounded input and synthetic/encounter acknowledgements.
+- Auth.js handles authentication cookies/protections; Next server actions validate origins. API mutations independently require same-origin JSON, an authenticated account, bounded input and privacy/encounter acknowledgements; real-case notes require separate de-identification confirmation.
 - Server session ownership controls creation, list, history, detail pages and direct-ID API access. Client-supplied ownership fields are rejected.
 - Shared PostgreSQL limits allow five registrations or ten logins per email, ten live analyses per account, or twenty prepared examples per account in 15 minutes. These are demo safeguards, not comprehensive distributed/IP abuse protection.
 - Secrets stay server-side. Logs contain safe categories, not submitted documentation, provider payloads, passwords or raw database exceptions.
-- OpenAI calls use `store: false`; this is not a zero-retention guarantee. Best-effort identifier rejection is not de-identification and cannot establish that documentation is fictional.
+- OpenAI calls use `store: false`; this is not a zero-retention guarantee. Best-effort identifier rejection is not de-identification and cannot establish that documentation is fictional or fully de-identified.
 - Security headers include `nosniff`, frame denial and referrer policy. Protected pages discourage indexing; private analysis API responses disable caching.
 - Never use this application for real patient care or billing. There is no HIPAA-compliance claim.
 
@@ -205,9 +216,11 @@ npm.cmd run test:integration
 
 Both scripts target localhost only, create uniquely named temporary accounts, and remove only their own accounts, analyses and throttle entries. They use the locally configured database, so select the intended development branch first. They never call OpenAI. `npm test` must run first to compile the integration fixtures.
 
-The optional `npm.cmd run test:live` sends two built-in fictional cases through the local authenticated analysis endpoint, including one optional HPI request. It calls the paid API and removes its temporary account/results. Run it only after the API account has credits; provider/billing failure intentionally fails this check. The harness also exits with status 2 if a live case differs from its reviewed fixture code, even when transport and persistence pass. It does not force a result or replace the model with a fixture. No successful live-model test is implied by prepared examples. For the broader opt-in check, run `npm.cmd run test:live -- --core`: it sends all six core fictional cases plus one incomplete control, with optional HPI for the three admissions. This incurs API usage; it does not submit reference documents or existing saved notes.
+The optional `npm.cmd run test:live` sends two built-in fictional cases through the local authenticated analysis endpoint, including one optional HPI request. It exercises both declared-source paths using fictional controls only. It calls the paid API and removes its temporary account/results. Run it only after the API account has credits; provider/billing failure intentionally fails this check. The harness also exits with status 2 if a live case differs from its reviewed fixture code, even when transport and persistence pass. It does not force a result or replace the model with a fixture. No successful live-model test is implied by prepared examples. For the broader opt-in check, run `npm.cmd run test:live -- --core`: it sends all six core fictional cases plus one incomplete control, with optional HPI for the three admissions. This incurs API usage; it does not submit reference documents or existing saved notes.
 
-Unit tests exercise all 64 definite MDM combinations, deduplication, incomplete/uncertain/contradictory findings, exact evidence, provider refusals/invalid output, HPI safeguards, synthetic input validation and authorization. Fixture and mocked-provider tests do not establish model quality, hallucination freedom, clinical accuracy or billing validation.
+`test:imports` parses generated fictional PDF/DOCX/TXT bytes with the actual extraction libraries. It does not open a browser. File-picker behavior, PDF worker delivery and the editable import review still require browser acceptance.
+
+Unit tests exercise all 64 definite MDM combinations, deduplication, incomplete/uncertain/contradictory findings, exact evidence, provider refusals/invalid output, HPI safeguards, privacy/input validation, declared-source acknowledgements, file bounds and authorization. Fixture and mocked-provider tests do not establish model quality, hallucination freedom, clinical accuracy or billing validation.
 
 On a managed Windows machine that blocks build subprocesses:
 
@@ -223,7 +236,7 @@ Prioritized findings:
 
 | Priority | Finding | Status |
 | --- | --- | --- |
-| P1 | Live OpenAI was initially blocked by exhausted credits | Resolved after the owner added credits: both local workflows now return structured responses and save/reopen successfully; Vercel variables not inspected |
+| P1 | Live OpenAI was initially blocked by exhausted credits | Resolved after the owner added credits: both local workflows now return structured responses and save/reopen successfully; deployed live request returned configuration-error 503 before contacting OpenAI; environment settings are not accessible from this workspace |
 | P1 | Live extraction confused presenting complaints with encounter conflicts, paraphrased citations, and could omit supportive management | Fixed: typed source-cited service conflicts, numbered original passages, explicit management decisions, and clearer completeness definitions. Latest live check matched all six core CPT expectations plus an indeterminate incomplete control; model interpretation still requires review |
 | P1 | Conflicting severity entries for one illness could depend on extraction order | Fixed: remove conflicting definite credit and retain uncertainty; regression tested |
 | P1 | HPI vocabulary/negation totals alone could allow negation or quantities to move between facts | Fixed: conservative sentence fact-sequence guard; regression tested; semantic review still required |
@@ -239,7 +252,8 @@ Verification evidence:
 
 | Check | Result and limit |
 | --- | --- |
-| Unit tests | 80 passed; includes all twelve fixtures and 64 MDM combinations |
+| Unit tests | 85 passed; includes privacy/import validation, all twelve fixtures and 64 MDM combinations |
+| File parsers | Generated fictional selectable-text PDF, DOCX and UTF-8 text passed with the actual extraction libraries; browser UI/worker acceptance pending |
 | Lint and TypeScript | Passed |
 | Prisma schema validation | Passed |
 | Standard production build | Compiled; TypeScript subprocess blocked by local `spawn EPERM` |
@@ -258,11 +272,11 @@ Verification evidence:
 
 Migration ledger/column inspection is not an exhaustive Prisma schema-drift proof. Native `prisma migrate status`/drift tooling should be run from a normal permitted terminal before a release. No migration was applied during Phase 3.
 
-**Readiness:** both prepared mode and live analysis of the six core fictional cases work locally. The live incomplete-documentation control remains indeterminate. The form makes Run live AI analysis the primary action; its results are new provider responses, not substituted fixtures. Final portfolio sign-off still requires browser acceptance and authenticated/live checks on the approved Vercel deployment. Production database connectivity is not established by public-page checks alone. AI interpretations still require review, and other notes may correctly return indeterminate results.
+**Readiness:** both prepared mode and live analysis work locally. The most recent change was verified with two live moderate cases, including a fictional control exercising the de-identified declaration; the prior broader check covered all six core fictional cases. The live incomplete-documentation control remains indeterminate. The form makes Run live AI analysis the primary action; its results are new provider responses, not substituted fixtures. Final portfolio sign-off still requires browser acceptance and authenticated/live checks on the approved Vercel deployment. An authenticated production check confirmed login and database access, but its live request returned a configuration-error 503 before reaching OpenAI. The active deployment must load a usable Production OPENAI_API_KEY. AI interpretations still require review, and other notes may correctly return indeterminate results.
 
 ## Vercel release
 
-**Owner approval is required before deployment or production infrastructure changes.** Pushing `main` may trigger the existing Vercel Git integration, so treat that push as a release action. Phase 3 has not been pushed or deployed by this audit.
+**Owner approval is required before deployment or production infrastructure changes.** Pushing `main` may trigger the existing Vercel Git integration, so treat that push as a release action. The previous Phase 3 release was pushed to main and deployed. New import/source-selection changes remain local until committed and pushed.
 
 After approval:
 
@@ -279,7 +293,8 @@ After approval:
 - Register, sign in, refresh, sign out, and revisit a protected URL using the final HTTPS domain. Check that authentication cookies are Secure/HttpOnly.
 - At phone and desktop widths, use only the keyboard to reach navigation, radios, fields, collapsible sections, submit controls, error messages and copy action; check contrast, focus and horizontal overflow.
 - In both workflows, type distinct drafts in Full Note and Separate Sections, switch back and forth, and verify preservation while mounted. Confirm all diagnostic sections and A&P are usable. Changing samples must request replacement and reset encounter confirmation.
-- Submit empty/incomplete synthetic documentation, missing acknowledgements, edited examples, and normal prepared cases; check visible feedback, loading/disabled controls, results and History.
+- Import a small fictional PDF with selectable text, DOCX and TXT; verify review/edit/apply/cancel behavior, replacement confirmation, no binary upload, scanned-PDF errors and preservation of section drafts.
+- Submit empty/incomplete fictional documentation, missing acknowledgements, edited examples, and normal prepared cases; check visible feedback, loading/disabled controls, results and History.
 - With a configured API key, analyze an entirely invented admission with HPI enabled and an invented progress note. Review the actual response/evidence, omissions, uncertainty and saved report. Rewording unchanged HPI facts must not independently affect coding. An indeterminate outcome may be correct.
 - With a second synthetic account, verify saved history and direct URLs/API IDs remain inaccessible. Do not put session cookies in screenshots.
 - Reopen the saved live result after refresh to verify production Neon persistence. A public landing page alone does not test the database.
@@ -290,7 +305,7 @@ Actual browser screenshots are pending manual capture; none are fabricated. Capt
 
 | Suggested file | Capture |
 | --- | --- |
-| `landing.png` | Tagline, product explanation and synthetic-data notice |
+| `landing.png` | Tagline, product explanation and privacy notice |
 | `new-analysis.png` | Both workflow choices, input-mode selector and prepared example |
 | `results.png` | Potential code, separate MDM elements, evidence and uncertainty |
 | `history.png` | Saved fictional cases owned by one demonstration account |

@@ -14,7 +14,7 @@ test("invalid credentials are rejected", () => {
   }
 });
 
-test("registration requires explicit synthetic data acknowledgement", () => {
+test("registration requires explicit documentation privacy acknowledgement", () => {
   const input = { name: "Alex", email: "a@b.com", password: "a-long-password", confirmPassword: "a-long-password" };
   assert.equal(registrationSchema.safeParse(input).success, false);
   assert.equal(registrationSchema.safeParse({ ...input, syntheticOnly: "on" }).success, true);

@@ -34,7 +34,7 @@ try {
       ? { id: sampleId, noteType: "progress", note: "Entirely fictional hospital progress documentation. Patient stable. Continue current plan.", sections: { ...emptySections }, expected: { code: null } }
       : demoCases.find((item) => item.id === sampleId);
     const inputMode = index % 2 ? "sections" : "full";
-    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), syntheticOnly: true, encounterConfirmed: true, improveHpi: sample.noteType === "admission", providerMode: "openai", sampleId: null };
+    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), documentSource: index % 2 ? "deidentified" : "synthetic", privacyConfirmed: true, deidentificationConfirmed: index % 2 === 1, encounterConfirmed: true, improveHpi: sample.noteType === "admission", providerMode: "openai", sampleId: null };
     const response = await fetch(new URL("/api/analyses", base), { method: "POST", headers, body: JSON.stringify(input), signal: AbortSignal.timeout(60_000) });
     const result = await response.json();
     assert.equal(response.status, 201, result.error || "Live analysis was not saved.");
@@ -43,8 +43,12 @@ try {
     const record = await own.json();
     assert.equal(record.syntheticNote, sample.note);
     assert.equal(record.userId, id);
+    // Synthetic controls exercise both declared-source paths; no real notes are used.
+    assert.equal(record.submittedInput.documentSource, input.documentSource);
+    assert.equal(record.syntheticDataConfirmed, input.documentSource === "synthetic");
     const report = reportSchema.parse(record.structuredAnalysis);
     assert.equal(report.origin, "openai");
+    assert.equal(report.documentSource, input.documentSource);
     assert.ok(report.model);
     const findings = [...report.extraction.problems, ...report.extraction.data, ...report.extraction.risks];
     for (const finding of findings.filter((item) => !item.uncertain)) {

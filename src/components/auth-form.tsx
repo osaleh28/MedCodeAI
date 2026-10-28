@@ -15,7 +15,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       {isRegister && <p id="password-help" className="field-help">Use 12 or more characters, up to 72 bytes.</p>}
     </div>
     {isRegister && <div className="field"><label htmlFor="confirmPassword">Confirm password</label><input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" maxLength={72} aria-describedby="confirm-password-help" required /><p id="confirm-password-help" className="field-help">Enter the same password again.</p></div>}
-    {isRegister && <label className="checkbox-label"><input type="checkbox" name="syntheticOnly" required /><span>I will use synthetic data only and will never enter real patient information.</span></label>}
+    {isRegister && <label className="checkbox-label"><input type="checkbox" name="syntheticOnly" required /><span>I will use fictional or fully de-identified notes only, exclude identifying patient details, and submit only documentation I am authorized to use.</span></label>}
     <div aria-live="polite" aria-atomic="true">{state.error && <p className="form-error" role="alert">{state.error}</p>}</div>
     <button className="button primary full" type="submit" disabled={pending}>
       {pending ? <><LoaderCircle className="spin" size={18} /> Please wait…</> : <>{isRegister ? "Create account" : "Sign in"}<ArrowRight size={18} /></>}

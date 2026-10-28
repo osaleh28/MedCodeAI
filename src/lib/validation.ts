@@ -10,7 +10,7 @@ export const loginSchema = z.object({ email: emailSchema, password: passwordSche
 export const registrationSchema = loginSchema.extend({
   name: z.string().trim().min(2, "Enter your name (at least 2 characters).").max(80),
   confirmPassword: z.string().min(1, "Confirm your password."),
-  syntheticOnly: z.literal("on", { error: "Confirm that you will use synthetic data only." }),
+  syntheticOnly: z.literal("on", { error: "Confirm that you will exclude identifying patient information." }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match. Please enter the same password in both fields.",
   path: ["confirmPassword"],

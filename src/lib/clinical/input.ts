@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { potentialIdentifiers } from "./privacy";
 
 export const sectionLabels = {
   hpi: "History of Present Illness (HPI)",
@@ -35,12 +36,20 @@ export const analysisInputSchema = z.object({
   inputMode: z.enum(["full", "sections"]),
   fullNote: text,
   sections: sectionsSchema,
-  syntheticOnly: z.literal(true, { error: "Confirm that all submitted documentation is entirely synthetic." }),
+  documentSource: z.enum(["synthetic", "deidentified"]).default("synthetic"),
+  privacyConfirmed: z.boolean().optional(),
+  deidentificationConfirmed: z.boolean().default(false),
+  // Compatibility with the previously deployed fictional-only form.
+  syntheticOnly: z.boolean().optional(),
   encounterConfirmed: z.literal(true, { error: "Confirm the encounter assumptions before continuing." }),
   improveHpi: z.boolean(),
   providerMode: z.enum(["openai", "prepared_demo"]),
   sampleId: z.string().max(80).nullable(),
 }).strict().superRefine((input, ctx) => {
+  const confirmed = input.privacyConfirmed === true || (input.privacyConfirmed === undefined && input.documentSource === "synthetic" && input.syntheticOnly === true);
+  if (!confirmed) ctx.addIssue({ code: "custom", message: "Confirm that the documentation contains no identifying patient information and may be submitted for this demonstration.", path: ["privacyConfirmed"] });
+  if (input.documentSource === "deidentified" && !input.deidentificationConfirmed) ctx.addIssue({ code: "custom", message: "Confirm that this real-case note has already been fully de-identified and you are authorized to use it.", path: ["deidentificationConfirmed"] });
+  if (input.providerMode === "prepared_demo" && input.documentSource !== "synthetic") ctx.addIssue({ code: "custom", message: "Prepared examples are fictional teaching notes. Use live AI for de-identified real-case notes.", path: ["documentSource"] });
   const note = normalizeDocumentation(input);
   if (!note.trim()) ctx.addIssue({ code: "custom", message: "Enter documentation in at least one active field.", path: ["fullNote"] });
   if (note.length > 24_000) ctx.addIssue({ code: "custom", message: "Keep the combined documentation within 24,000 characters.", path: ["fullNote"] });
@@ -59,8 +68,5 @@ export function normalizeDocumentation(input: { noteType: NoteType; inputMode: "
 // Best-effort rejection of obvious identifiers is an extra guard, not de-identification.
 // Consent is mandatory; no automated detector can prove that text is synthetic.
 export function containsObviousIdentifiers(note: string) {
-  return /\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(note)
-    || /\b\d{3}-\d{2}-\d{4}\b/.test(note)
-    || /\b(?:MRN|medical record (?:number|no\.?)|patient name|date of birth|DOB)\s*[:#=]\s*\S+/i.test(note)
-    || /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b/.test(note);
+  return potentialIdentifiers(note).length > 0;
 }

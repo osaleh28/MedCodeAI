@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     if (!parsed.success) return json({ error: parsed.error.issues[0].message }, 400);
     const input = parsed.data;
     const note = normalizeDocumentation(input);
-    if (containsObviousIdentifiers(note)) return json({ error: "Potential personal identifiers were detected. Use an entirely invented case with no identifiers; no text was sent to the AI provider." }, 400);
+    if (containsObviousIdentifiers(note)) return json({ error: "Potential identifying information was detected. Remove identifiers and calendar dates before submitting. Nothing was sent to the AI provider or saved. This check does not certify de-identification." }, 400);
     const prepared = input.providerMode === "prepared_demo" ? resolvePreparedCase(input.sampleId, note, input.noteType) : null;
     if (input.providerMode === "prepared_demo" && !prepared) return json({ error: "Prepared mode requires an unchanged built-in example. Use live AI for edited documentation." }, 400);
     const configuration = prepared ? null : getAiConfiguration();
@@ -39,14 +39,14 @@ export async function POST(request: Request) {
     ]);
     const extraction = addProgressClarifications(groundExtraction(extracted, note), note, input.noteType);
     const mdm = evaluateMdm(extraction, note, input.noteType);
-    const report = reportSchema.parse({ schemaVersion: 1, origin: input.providerMode, model: configuration?.model ?? null,
+    const report = reportSchema.parse({ schemaVersion: 1, documentSource: input.documentSource, origin: input.providerMode, model: configuration?.model ?? null,
       demoCaseId: prepared?.id ?? null, exampleRationale: prepared?.expected.rationale ?? null, extraction, mdm, hpi });
     const record = await getDb().billingAnalysis.create({ data: {
       userId: user.id, title: prepared?.title ?? `${noteLabels[input.noteType]} analysis`,
-      syntheticNote: note, syntheticDataConfirmed: true, noteType: input.noteType, inputMode: input.inputMode,
+      syntheticNote: note, syntheticDataConfirmed: input.documentSource === "synthetic", noteType: input.noteType, inputMode: input.inputMode,
       // Enforce active-field persistence on the server as well as the form.
       // A crafted request must not retain an inactive workflow's hidden draft.
-      submittedInput: { fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? Object.fromEntries(sectionKeys(input.noteType).map((key) => [key, input.sections[key]])) : {} },
+      submittedInput: { documentSource: input.documentSource, privacyConfirmed: true, deidentificationConfirmed: input.deidentificationConfirmed, fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? Object.fromEntries(sectionKeys(input.noteType).map((key) => [key, input.sections[key]])) : {} },
       structuredAnalysis: report, problemsComplexity: mdm.problems.level ?? "Indeterminate", dataComplexity: mdm.data.level ?? "Indeterminate", riskComplexity: mdm.risk.level ?? "Indeterminate",
       mdmComplexity: mdm.overall ?? "Indeterminate", suggestedCptCode: mdm.potentialCode, rationale: mdm.explanation,
       documentationGaps: extraction.gaps, hpiRevision: hpi?.suggestedHpi || null,

@@ -2,6 +2,7 @@ import { CopyTextButton } from "@/components/copy-text-button";
 import { dataKinds, type EvidenceFinding } from "@/lib/clinical/contracts";
 import { noteLabels, type NoteType } from "@/lib/clinical/input";
 import { ruleSources } from "@/lib/clinical/mdm";
+import { documentSourceLabels } from "@/lib/clinical/privacy";
 import type { SavedReport } from "@/lib/clinical/report";
 import { MdmLearningGuide } from "@/components/mdm-learning-guide";
 import { ProgressNoteGuide } from "@/components/progress-note-guide";
@@ -28,6 +29,7 @@ export function AnalysisResults({ report, note, noteType, inputMode }: { report:
     </section>
 
     <div className="result-legend" aria-label="How to read this assessment"><span><i className="legend-dot facts" /> Documented facts: exact note excerpts</span><span><i className="legend-dot interpretation" /> AI interpretations: extracted clinical categories</span><span><i className="legend-dot rules" /> Rule conclusions: deterministic calculations</span><span><i className="legend-dot uncertain" /> Uncertainties: no assumed credit</span></div>
+    <p className="field-help">Source declared by user: {documentSourceLabels[report.documentSource]}. Source classification and de-identification are not independently verified.</p>
     <p className="origin-notice">{report.origin === "prepared_demo" ? "Prepared educational example: the extraction is a built-in fixture, not a live AI response." : `Live AI extraction · ${report.model ?? "configured model"}. The model did not select the final code.`}</p>
     <section className="panel"><span className="label">{report.origin === "prepared_demo" ? "Prepared clinical interpretation" : "AI interpretation"}</span><h2>Clinical summary</h2><p className="mt-4">{extraction.summary}</p>{report.exampleRationale && <p className="mt-3"><strong>Example rule check:</strong> {report.exampleRationale}</p>}</section>
 
@@ -55,7 +57,7 @@ export function AnalysisResults({ report, note, noteType, inputMode }: { report:
 
     {noteType === "progress" && <div className="result-section"><ProgressNoteGuide /></div>}
     <div className="result-section"><MdmLearningGuide /></div>
-    <details className="panel result-section" id="source-documentation"><summary>Submitted synthetic documentation · original source</summary><pre className="note-text">{note}</pre></details>
+    <details className="panel result-section" id="source-documentation"><summary>Submitted documentation · original source</summary><pre className="note-text">{note}</pre></details>
     <details className="panel result-section"><summary>Coding framework, assumptions, and limitations</summary><p className="mt-4">Saved rule version: {mdm.ruleVersion}. Assessment date: {new Date(mdm.assessedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}.</p><ul className="result-list">{mdm.limitations.map((item, index) => <li key={index}>{item}</li>)}</ul><ul className="result-list">{ruleSources.map((source) => <li key={source.url}><a className="text-link" href={source.url} target="_blank" rel="noreferrer">{source.title}</a></li>)}</ul></details>
   </div>;
 }

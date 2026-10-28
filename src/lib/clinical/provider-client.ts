@@ -18,7 +18,7 @@ export function providerErrorMessage(error: ProviderError) {
     return "The AI provider's quota or rate limit was reached. Please try later or run a prepared example.";
   }
   return {
-    configuration: "Live AI analysis is currently unavailable. You can run an unchanged prepared example or try again later.",
+    configuration: "Live AI analysis is not configured correctly on this deployment. The demo owner should check the Production OPENAI_API_KEY and redeploy. You can still run an unchanged prepared example. Nothing was saved.",
     timeout: "The AI request timed out. Nothing was saved. Please try again later.",
     refusal: "The AI provider could not process this documentation. Nothing was saved. Try a fictional demonstration case.",
     invalid_output: "The AI response could not be validated. Nothing was saved or assigned a code. Please try again later.",
@@ -50,7 +50,7 @@ export async function requestStructured<T extends z.ZodType>({
       method: "POST", signal: controller.signal,
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model, store: false, max_output_tokens: 6500, instructions,
-        input: [{ role: "user", content: [{ type: "input_text", text: JSON.stringify({ syntheticDocumentation: documentation }) }] }],
+        input: [{ role: "user", content: [{ type: "input_text", text: JSON.stringify({ clinicalDocumentation: documentation }) }] }],
         text: { format: { type: "json_schema", name, strict: true, schema: schemaJson } },
       }),
     });

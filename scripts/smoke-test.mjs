@@ -60,7 +60,7 @@ try {
     const resultsHtml = await resultsPage.text();
     assert.ok(resultsHtml.includes(sample.expected.code ?? "Indeterminate"));
     assert.ok(resultsHtml.includes("Coding-rule conclusion"));
-    assert.ok(resultsHtml.includes("Submitted synthetic documentation"));
+    assert.ok(resultsHtml.includes("Submitted documentation"));
     assert.ok(resultsHtml.includes("Prepared educational example"));
     if (sample.noteType === "admission") assert.ok(resultsHtml.includes("Original HPI"));
     console.log(`PASS ${sample.id}: persisted ${sample.expected.code}, readable by owner, hidden from other account.`);
@@ -88,6 +88,9 @@ try {
     { ...validInput, encounterConfirmed: false },
     { ...validInput, userId: ids[1] },
     { ...validInput, fullNote: "MRN: 123456" },
+    { ...validInput, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: false, providerMode: "openai" },
+    { ...validInput, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: true },
+    { ...validInput, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: true, providerMode: "openai", fullNote: "Patient name: Fictional Person" },
     { ...validInput, fullNote: sample.note + " Edited documentation." },
   ]) {
     const response = await fetch(url("/api/analyses"), { method: "POST", headers: aHeaders, body: JSON.stringify(input) });

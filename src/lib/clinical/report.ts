@@ -4,6 +4,7 @@ import { mdmResultSchema } from "./mdm";
 
 export const reportSchema = z.object({
   schemaVersion: z.literal(1),
+  documentSource: z.enum(["synthetic", "deidentified"]).default("synthetic"),
   origin: z.enum(["openai", "prepared_demo"]),
   model: z.string().nullable(),
   demoCaseId: z.string().nullable(),
