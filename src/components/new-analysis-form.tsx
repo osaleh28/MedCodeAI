@@ -75,6 +75,7 @@ export function NewAnalysisForm() {
   return <form className="analysis-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit("openai"); }}>
     <fieldset disabled={pending || importing} className="analysis-fieldset">
       <legend className="sr-only">Educational documentation analysis</legend>
+      <MdmLearningGuide />
       <section className="panel"><div className="panel-heading"><h2>1. Choose your workflow</h2><span className="label">MDM only</span></div>
         <fieldset className="workflow-options"><legend className="sr-only">Note type</legend>{(["admission", "progress"] as const).map((type) => <label className={`workflow-option ${noteType === type ? "selected" : ""}`} key={type}><input type="radio" name="noteType" checked={noteType === type} onChange={() => { setNoteType(type); setEncounterConfirmed(false); resetPrivacy(); }} /><span><strong>{noteLabels[type]}</strong><small>{type === "admission" ? "Assumes initial hospital inpatient/observation care · 99221–99223" : "Assumes subsequent hospital inpatient/observation care · 99231–99233"}</small></span></label>)}</fieldset>
         <p className="field-help">These are encounter assumptions. A note title alone does not establish the billable service. Time-based billing is excluded.</p>
@@ -83,7 +84,6 @@ export function NewAnalysisForm() {
 
       <section className="panel"><div className="sample-picker"><div><h2>Try a fictional case</h2><p>Load a case and choose Run live AI analysis to see OpenAI analyze its documentation. You can also edit the fictional note before analyzing.</p></div><div className="field"><label htmlFor="demo-case">Synthetic example</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup><optgroup label="Danger Table Worksheet practice — updated framework">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
 
-      <MdmLearningGuide />
       {noteType === "progress" && <ProgressNoteGuide />}
 
       <section className="panel"><div className="panel-heading"><h2>2. Add documentation</h2></div>

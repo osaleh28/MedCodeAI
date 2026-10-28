@@ -9,13 +9,12 @@ const lessons = [
 ];
 
 export function MdmLearningGuide() {
-  return <section className="panel mdm-learning-guide" aria-label="Worksheet-based MDM education">
-    <details><summary>Understand complexity: lessons from the Danger Table Worksheet</summary>
+  return <section className="panel mdm-learning-guide" aria-label="How MDM complexity is determined">
+    <h2>How MDM complexity is determined</h2>
       <p className="mt-4 text-sm text-slate-600">The supplied worksheet uses an older point method. This guide adapts its teaching topics to the AMA hospital E/M framework effective in 2023. MedCode AI evaluates problems, data, and management risk separately; it does not add the worksheet’s diagnosis or data points.</p>
       <div className="learning-guide-grid">{lessons.map((lesson) => <article key={lesson.title}><h3>{lesson.title}</h3><p>{lesson.text}</p></article>)}</div>
       <div className="uncertainty-box mt-5"><strong>The two-of-three check</strong><p className="text-sm mt-2">A higher element does not automatically raise the entire encounter. Moderate problems, low data, and moderate management risk support moderate overall MDM when the encounter assumptions and evidence are reliable.</p><p className="text-sm">Unclear documentation stays uncertain. Clarify work actually performed; do not add facts or unnecessary activities to reach a level.</p></div>
       <p className="field-help mt-4">The new worksheet practice cases are original, entirely fictional teaching cases, not clinical advice or validated billing examples. Prepared outcomes are checked by rule tests. A live AI interpretation may differ and must be reviewed.</p>
       <a className="text-link text-sm" href={ruleSources[0].url + "#page=8"} target="_blank" rel="noreferrer">Read the governing AMA framework ↗</a>
-    </details>
   </section>;
 }
