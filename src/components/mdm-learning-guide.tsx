@@ -13,7 +13,25 @@ export function MdmLearningGuide() {
     <h2>How MDM complexity is determined</h2>
       <p className="mt-4 text-sm text-slate-600">The supplied worksheet uses an older point method. This guide adapts its teaching topics to the AMA hospital E/M framework effective in 2023. MedCode AI evaluates problems, data, and management risk separately; it does not add the worksheet’s diagnosis or data points.</p>
       <div className="learning-guide-grid">{lessons.map((lesson) => <article key={lesson.title}><h3>{lesson.title}</h3><p>{lesson.text}</p></article>)}</div>
-      <div className="uncertainty-box mt-5"><strong>The two-of-three check</strong><p className="text-sm mt-2">A higher element does not automatically raise the entire encounter. Moderate problems, low data, and moderate management risk support moderate overall MDM when the encounter assumptions and evidence are reliable.</p><p className="text-sm">Unclear documentation stays uncertain. Clarify work actually performed; do not add facts or unnecessary activities to reach a level.</p></div>
+      <div className="uncertainty-box mt-5">
+        <h3>The two-of-three check</h3>
+        <p className="text-sm mt-2">At least <strong>two of the three MDM elements must meet or exceed a level</strong> for the overall assessment to reach that level.</p>
+        <p className="text-sm mt-3">The three elements are:</p>
+        <ol className="list-decimal pl-5 text-sm space-y-2">
+          <li><strong>Problems addressed:</strong> Their documented complexity.</li>
+          <li><strong>Data reviewed and analyzed:</strong> Qualifying tests, records, interpretations, and discussions.</li>
+          <li><strong>Management risk:</strong> Risk associated with the documented treatment decisions.</li>
+        </ol>
+        <p className="text-sm mt-4">For example:</p>
+        <table className="w-full border-collapse text-left text-sm">
+          <caption className="sr-only">Example of two moderate elements supporting moderate overall MDM</caption>
+          <thead><tr><th scope="col" className="border-b border-slate-200 px-3 py-2">Element</th><th scope="col" className="border-b border-slate-200 px-3 py-2">Supported level</th></tr></thead>
+          <tbody>{[["Problems", "Moderate"], ["Data", "Low"], ["Management risk", "Moderate"]].map(([element, level]) => <tr key={element}><th scope="row" className="border-b border-slate-200 px-3 py-2 font-normal">{element}</th><td className="border-b border-slate-200 px-3 py-2">{level}</td></tr>)}</tbody>
+        </table>
+        <p className="text-sm mt-4">The overall MDM is <strong>moderate</strong> because two elements meet moderate criteria.</p>
+        <p className="text-sm">One high element alone does <strong>not</strong> establish high overall MDM. The check concerns problems, data, and risk—not history, examination, and MDM.</p>
+        <p className="text-sm">Unclear documentation stays uncertain. Clarify work actually performed; do not add facts or unnecessary activities to reach a level.</p>
+      </div>
       <p className="field-help mt-4">The new worksheet practice cases are original, entirely fictional teaching cases, not clinical advice or validated billing examples. Prepared outcomes are checked by rule tests. A live AI interpretation may differ and must be reviewed.</p>
       <a className="text-link text-sm" href={ruleSources[0].url + "#page=8"} target="_blank" rel="noreferrer">Read the governing AMA framework ↗</a>
   </section>;
