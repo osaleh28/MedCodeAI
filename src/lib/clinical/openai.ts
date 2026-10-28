@@ -1,6 +1,6 @@
 import "server-only";
 import { clinicalExtractionSchema, groundExtraction, hpiSchema, validateHpi } from "./contracts";
-import { ProviderError, requestStructured } from "./provider-client";
+import { configuredApiKey, requestStructured } from "./provider-client";
 import type { NoteType } from "./input";
 
 const shared = `You process ONLY entirely synthetic documentation for a portfolio education demo.
@@ -16,6 +16,9 @@ Use the same uniqueKey for order/review/repeated measures of a test, all compone
 Independent historian requires a documented reason history could not reliably be obtained from the patient or needed confirmation; a relative merely being present is insufficient. qualifies must reflect these restrictions. Multiple historians provide one historian category, not one credit each.
 Independent interpretation must be the clinician's own documented interpretation of a test performed by another clinician, and must not be separately reported. Set separatelyReported=null if not established; never assume false. Discussion must be interactive and relevant with a qualifying external clinician/appropriate source, not a referral or a note copied forward; discussion with family is not this category. Set qualifies=null when external eligibility/interaction is unclear. Uncertainty about separate reporting must be stated.
 Risk concerns actual documented decisions, not diagnosis severity. Medication list alone is not a prescription_decision. Routine renal/electrolyte monitoring is not automatically toxicity_monitoring: the drug, potential serious toxicity, and intensive monitoring purpose must be explicit. Hospitalization status alone is not an admission_or_escalation_decision; there must be an actual decision to admit or escalate. Do not infer high risk solely from multiple diagnoses, abnormal labs, or existing ICU location. Unknown clinical/procedure risk stays unknown.
+The supplied legacy Danger Table Worksheet is educational background only; never apply its diagnosis/data point totals or combine presenting-problem severity into management risk. Stable status is a clinician's assessment relative to individualized treatment goals, not merely unchanged readings. Distinguish nonsevere from severe exacerbations using documented status and context, not disease names.
+For toxicity_monitoring, identify a serious adverse effect, an appropriate laboratory/physiologic/imaging monitoring plan and its frequency/context, and its role in current management. Monitoring chiefly for therapeutic efficacy and routine annual renal/electrolyte checks are not automatically intensive toxicity monitoring. The drug name, heparin/warfarin use, a laboratory order, or "monitor" alone is insufficient. History/examination monitoring alone does not meet this category. Preserve uncertainty when these details cannot be established.
+For resuscitation_limitation, require a current documented decision not to resuscitate or to de-escalate care because of poor prognosis. A pre-existing DNR/DNI order or code-status label alone is not this decision. Do not create a new decision from historical status. Diagnostic procedures must not be assigned management-risk levels from the worksheet's old procedure lists without applicable current criteria and documented patient/procedure context.
 problemsComplete/dataComplete/riskComplete mean the documentation provides enough context to establish the respective element without unresolved work or severity questions; absent documentation is not proof of minimal risk. Use false for ambiguity that could change that element. A complete note explicitly documenting no data activities may have dataComplete=true with no eligible activity. Do not invent no-work statements.
 Set isClinicalNote=false for nonclinical text. encounterConcerns lists explicit conflicts with the selected initial/subsequent hospital family (e.g. a discharge-only, consultation, critical-care, or same-day admission/discharge service). An ICU location alone does not prove a critical-care service. Do not invent a conflict just because administrative details are absent; encounter family is separately confirmed as an assumption by the user.
 Gaps must be neutral clarification QUESTIONS about work actually performed or status actually evaluated, not instructions to add facts, do unnecessary work, or upcode. Gaps have uncertain=true; evidence may be empty when information is absent. Include educationalExplanation. All other findings must be explicitly uncertain if exact source evidence is unavailable.`;
@@ -26,8 +29,7 @@ For available HPI, improve clarity, organization, grammar, and readability witho
 Suggest neutral follow-up clarificationQuestions when existing HPI is incomplete or ambiguous, without supplying answers. Do not imply that hypothetical answers occurred or that better wording merits higher billing.`;
 
 export function getAiConfiguration() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey?.trim() || /^(REPLACE_|YOUR_)/.test(apiKey)) throw new ProviderError("configuration");
+  const apiKey = configuredApiKey(process.env.OPENAI_API_KEY);
   return { apiKey, model: process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini-2025-04-14" };
 }
 

@@ -148,7 +148,7 @@ function assessRisk(extraction: ClinicalExtraction, note: string): Element {
     accepted.push({ ...item, name: `${item.decision} — ${item.criterion.replaceAll("_", " ")}` });
   }
   if (!accepted.length) unresolved = true;
-  return element(score, unresolved, "Risk reflects documented management decisions. Being in a hospital, having many diagnoses, routine medication lists, and abnormal tests do not themselves establish high management risk.", accepted, excluded);
+  return element(score, unresolved, "Risk reflects decisions documented for this encounter. Hospital status, diagnosis severity, medication lists, historical DNR status, routine efficacy checks, and abnormal results do not by themselves establish high management risk.", accepted, excluded);
 }
 
 export function mapHospitalCode(type: NoteType, level: MdmLevel) {

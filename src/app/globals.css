@@ -157,6 +157,11 @@ h2 { font-size: clamp(27px, 3vw, 36px); line-height: 1.25; letter-spacing: -1.2p
 .workflow-option small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
 .sample-picker { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 28px; }
 .sample-picker p { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.sample-learning-focus { padding: 12px 16px; background: #edf6f9; border-radius: 7px; font-size: 13px; color: var(--muted); }
+.learning-guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px; margin-top: 24px; }
+.learning-guide-grid article { padding: 18px; border: 1px solid var(--line); border-radius: 8px; }
+.learning-guide-grid h3 { font-size: 14px; margin-bottom: 8px; }
+.learning-guide-grid p { font-size: 13px; color: var(--muted); margin-bottom: 0; }
 .input-mode-options { display: flex; flex-wrap: wrap; gap: 22px; border: 0; padding: 20px 0 12px; }
 .input-mode-options legend { font-size: 13px; font-weight: 700; padding-top: 20px; }
 .input-mode-options label { font-size: 14px; }

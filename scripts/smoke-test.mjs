@@ -54,7 +54,7 @@ try {
     const resultsPage = await fetch(url(`/dashboard/analyses/${result.id}`), { headers: aHeaders });
     assert.equal(resultsPage.status, 200);
     const resultsHtml = await resultsPage.text();
-    assert.ok(resultsHtml.includes(sample.expected.code));
+    assert.ok(resultsHtml.includes(sample.expected.code ?? "Indeterminate"));
     assert.ok(resultsHtml.includes("Coding-rule conclusion"));
     assert.ok(resultsHtml.includes("Submitted synthetic documentation"));
     assert.ok(resultsHtml.includes("Prepared educational example"));

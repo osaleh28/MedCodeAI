@@ -10,3 +10,6 @@ next-env.d.ts
 npm-debug.log*
 .npm-cache/
 .vercel/
+# Supplied local reference scans; the application contains original teaching cases.
+/Happy Hospitalist Card*.pdf
+/Danger Table Worksheet*.pdf

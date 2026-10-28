@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, FlaskConical, LoaderCircle } from "lucide-react";
-import { emptySections, noteLabels, normalizeDocumentation, sectionKeys, sectionLabels, type NoteType } from "@/lib/clinical/input";
+import { analysisInputSchema, emptySections, noteLabels, normalizeDocumentation, sectionKeys, sectionLabels, type NoteType } from "@/lib/clinical/input";
 import { demoCases } from "@/lib/clinical/demos";
+import { MdmLearningGuide } from "@/components/mdm-learning-guide";
 
 export function NewAnalysisForm() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export function NewAnalysisForm() {
   const [sampleId, setSampleId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
   const activeNote = normalizeDocumentation({ noteType, inputMode, fullNote, sections });
   const selectedSample = demoCases.find((sample) => sample.id === sampleId);
   const unchangedSample = selectedSample?.noteType === noteType && selectedSample.note === activeNote;
@@ -31,14 +34,25 @@ export function NewAnalysisForm() {
   }
 
   async function submit(providerMode: "openai" | "prepared_demo") {
+    if (pending) return;
+    const activeSections = { ...emptySections };
+    if (inputMode === "sections") for (const key of sectionKeys(noteType)) activeSections[key] = sections[key];
+    const input = analysisInputSchema.safeParse({ noteType, inputMode, fullNote: inputMode === "full" ? fullNote : "", sections: activeSections,
+      syntheticOnly, encounterConfirmed, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
+    if (!input.success) {
+      setError(input.error.issues.map((issue) => issue.path[0] === "encounterConfirmed"
+        ? "Step 1: confirm that this fictional encounter fits the selected hospital service family."
+        : issue.path[0] === "syntheticOnly" ? "Step 3: confirm that the documentation is entirely fictional and contains no real patient information."
+          : issue.message).join(" "));
+      // Focus also works when the same validation message is already displayed.
+      errorRef.current?.focus();
+      return;
+    }
     setPending(true); setError("");
     try {
-      const activeSections = { ...emptySections };
-      if (inputMode === "sections") for (const key of sectionKeys(noteType)) activeSections[key] = sections[key];
       const response = await fetch("/api/analyses", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ noteType, inputMode, fullNote: inputMode === "full" ? fullNote : "", sections: activeSections,
-          syntheticOnly, encounterConfirmed, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId }),
+        body: JSON.stringify(input.data),
       });
       const result = await response.json();
       if (response.status === 401) { router.push("/login"); return; }
@@ -48,7 +62,7 @@ export function NewAnalysisForm() {
     finally { setPending(false); }
   }
 
-  return <form className="analysis-form" onSubmit={(event) => { event.preventDefault(); void submit("openai"); }}>
+  return <form className="analysis-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit("openai"); }}>
     <fieldset disabled={pending} className="analysis-fieldset">
       <legend className="sr-only">Synthetic documentation analysis</legend>
       <section className="panel"><div className="panel-heading"><h2>1. Choose your workflow</h2><span className="label">MDM only</span></div>
@@ -57,7 +71,9 @@ export function NewAnalysisForm() {
         <label className="checkbox-label mt-4"><input type="checkbox" checked={encounterConfirmed} onChange={(e) => setEncounterConfirmed(e.target.checked)} required /><span>This fictional encounter fits the selected hospital service family. It is not a consultation, critical-care service, discharge service, or same-day admission/discharge service.</span></label>
       </section>
 
-      <section className="panel"><div className="sample-picker"><div><h2>Try a fictional case</h2><p>Load a case, review its documentation, and choose live AI or its prepared educational extraction.</p></div><div className="field"><label htmlFor="demo-case">Synthetic example</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option>{demoCases.map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</select></div></div></section>
+      <section className="panel"><div className="sample-picker"><div><h2>Try a fictional case</h2><p>Load a case, review its documentation, and choose live AI or its prepared educational extraction.</p></div><div className="field"><label htmlFor="demo-case">Synthetic example</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup><optgroup label="Danger Table Worksheet practice — updated framework">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
+
+      <MdmLearningGuide />
 
       <section className="panel"><div className="panel-heading"><h2>2. Add synthetic documentation</h2></div>
         <fieldset className="input-mode-options"><legend>Input method</legend>{(["full", "sections"] as const).map((mode) => <label key={mode}><input type="radio" name="inputMode" checked={inputMode === mode} onChange={() => setInputMode(mode)} /> {mode === "full" ? "Full note" : "Separate sections"}</label>)}</fieldset>
@@ -67,10 +83,10 @@ export function NewAnalysisForm() {
       </section>
 
       <section className="panel"><h2>3. Review and analyze</h2><label className="checkbox-label mt-5"><input type="checkbox" checked={syntheticOnly} onChange={(e) => setSyntheticOnly(e.target.checked)} required /><span>I confirm this documentation is entirely fictional and contains no real patient information. Live analysis sends the active documentation to OpenAI.</span></label>
-        <div className="analysis-actions"><button className="button primary" type="submit" disabled={pending || !activeNote.trim()}>{pending ? <><LoaderCircle size={18} className="spin" /> Analyzing and saving…</> : <>Analyze with AI <ArrowRight size={17} /></>}</button>
-          {unchangedSample && <button className="button secondary" type="button" disabled={pending || !syntheticOnly || !encounterConfirmed} onClick={() => void submit("prepared_demo")}><FlaskConical size={17} /> Run prepared example</button>}
+        <div className="analysis-actions"><button className="button primary" type="submit" disabled={pending}>{pending ? <><LoaderCircle size={18} className="spin" /> Analyzing and saving…</> : <>Analyze with AI <ArrowRight size={17} /></>}</button>
+          {unchangedSample && <button className="button secondary" type="button" disabled={pending} onClick={() => void submit("prepared_demo")}><FlaskConical size={17} /> Run prepared example</button>}
         </div><p className="field-help mt-3">Prepared examples use a reviewed fixture, not a live AI call. Editing a case requires live AI analysis. Results may take up to a minute.</p>
-        <div aria-live="polite" aria-atomic="true">{pending && <p className="field-help mt-3" role="status">Checking documentation, evaluating MDM, and saving your results. Please keep this page open.</p>}{error && <p role="alert" className="form-error mt-4">{error}</p>}</div>
+        <div aria-live="polite" aria-atomic="true">{pending && <p className="field-help mt-3" role="status">Checking documentation, evaluating MDM, and saving your results. Please keep this page open.</p>}{error && <p ref={errorRef} tabIndex={-1} role="alert" className="form-error mt-4">{error}</p>}</div>
       </section>
     </fieldset>
   </form>;

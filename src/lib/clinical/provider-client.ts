@@ -11,12 +11,21 @@ export class ProviderError extends Error {
   }
 }
 
+export function configuredApiKey(value: string | undefined) {
+  const key = value?.trim();
+  if (!key || /^(PASTE_|REPLACE_|YOUR_)/.test(key)) throw new ProviderError("configuration", undefined, "missing_api_key");
+  if (/^["']|["']$/.test(key) || /[\r\n]/.test(key) || /^OPENAI_API_KEY\s*=/.test(key)) {
+    throw new ProviderError("configuration", undefined, "malformed_api_key");
+  }
+  return key;
+}
+
 // Transport is injectable for deterministic tests. Credentials are supplied only
 // by the server wrapper; no browser module imports this client.
 export async function requestStructured<T extends z.ZodType>({
   schema, name, instructions, documentation, apiKey, model, fetcher = fetch,
 }: { schema: T; name: string; instructions: string; documentation: string; apiKey: string; model: string; fetcher?: typeof fetch }): Promise<z.infer<T>> {
-  if (!apiKey.trim()) throw new ProviderError("configuration");
+  const key = configuredApiKey(apiKey);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 40_000);
   try {
@@ -24,7 +33,7 @@ export async function requestStructured<T extends z.ZodType>({
     delete schemaJson.$schema;
     const response = await fetcher("https://api.openai.com/v1/responses", {
       method: "POST", signal: controller.signal,
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model, store: false, max_output_tokens: 6500, instructions,
         input: [{ role: "user", content: [{ type: "input_text", text: JSON.stringify({ syntheticDocumentation: documentation }) }] }],
         text: { format: { type: "json_schema", name, strict: true, schema: schemaJson } },

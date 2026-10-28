@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { requestStructured, ProviderError } from "../src/lib/clinical/provider-client";
+import { configuredApiKey, requestStructured, ProviderError } from "../src/lib/clinical/provider-client";
 import { clinicalExtractionSchema, groundExtraction, hpiSchema, validateHpi } from "../src/lib/clinical/contracts";
 import { demoCases } from "../src/lib/clinical/demos";
 import { evaluateMdm } from "../src/lib/clinical/mdm";
@@ -34,6 +34,15 @@ test("missing API key prevents any provider request", async () => {
   let called = false;
   await assert.rejects(() => requestStructured({ ...configuration, apiKey: "", fetcher: async () => { called = true; return Response.json({}); } }), ProviderError);
   assert.equal(called, false);
+});
+
+test("placeholder and incorrectly pasted credentials are rejected without an API call", async () => {
+  for (const value of ["PASTE_YOUR_OPENAI_API_KEY_HERE", "REPLACE_WITH_YOUR_OPENAI_API_KEY", '"fake-key"', "OPENAI_API_KEY=fake-key"]) {
+    let called = false;
+    await assert.rejects(() => requestStructured({ ...configuration, apiKey: value, fetcher: async () => { called = true; return Response.json({}); } }), ProviderError);
+    assert.equal(called, false);
+  }
+  assert.equal(configuredApiKey("  fake-test-key  "), "fake-test-key");
 });
 
 test("full structured extraction and separate HPI responses validate before rules are evaluated", async () => {
