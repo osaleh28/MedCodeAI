@@ -110,6 +110,30 @@ try {
   assert.ok(newHtml.includes("Full note") && newHtml.includes("Separate sections"));
   for (const sample of demoCases) assert.ok(newHtml.includes(`value="${sample.id}"`));
   console.log("PASS anonymous requests, cross-origin requests, direct record IDs, full saved pages, and history isolation.");
+
+  // Delete only a record created by this test, never an existing user's data.
+  const deleteTarget = saved.at(-1);
+  const deleteUrl = url(`/api/analyses/${deleteTarget}`);
+  const dashboardBefore = await fetch(url("/dashboard"), { headers: aHeaders });
+  assert.equal(dashboardBefore.status, 200);
+  const dashboardHtml = await dashboardBefore.text();
+  assert.ok(dashboardHtml.includes(deleteTarget) && dashboardHtml.includes("delete-analysis-button"));
+  assert.equal((await fetch(deleteUrl, { method: "DELETE", headers: { Origin: base.origin } })).status, 401);
+  assert.equal((await fetch(deleteUrl, { method: "DELETE", headers: bHeaders })).status, 404);
+  assert.equal((await fetch(deleteUrl, { method: "DELETE", headers: { ...aHeaders, Origin: "https://untrusted.example" } })).status, 403);
+  assert.equal((await fetch(deleteUrl, { method: "DELETE", headers: { Cookie: aHeaders.Cookie } })).status, 403);
+  assert.equal((await fetch(deleteUrl, { headers: aHeaders })).status, 200);
+  const deleted = await fetch(deleteUrl, { method: "DELETE", headers: aHeaders });
+  assert.equal(deleted.status, 204);
+  assert.equal(deleted.headers.get("Cache-Control"), "private, no-store");
+  assert.equal((await fetch(deleteUrl, { headers: aHeaders })).status, 404);
+  assert.equal((await fetch(deleteUrl, { method: "DELETE", headers: aHeaders })).status, 404);
+  const dashboardAfter = await fetch(url("/dashboard"), { headers: aHeaders });
+  assert.ok(!(await dashboardAfter.text()).includes(deleteTarget));
+  const historyAfter = await fetch(url("/dashboard/history"), { headers: aHeaders });
+  assert.ok(!(await historyAfter.text()).includes(deleteTarget));
+  assert.equal((await db.query('SELECT COUNT(*)::int AS count FROM "BillingAnalysis" WHERE "userId"=$1', [ids[0]])).rows[0].count, demoCases.length - 1);
+  console.log("PASS owner deletion removes the saved record from dashboard/history; anonymous, foreign-owner, cross-origin and repeated deletions are denied.");
 } finally {
   // IDs are random and were created only for this test. User deletion cascades
   // to this test's analyses; existing users and analyses are untouched.

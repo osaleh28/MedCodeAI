@@ -19,7 +19,7 @@ Clinical documentation can be lengthy without clearly showing which problems wer
 ## Features
 
 - Email/password registration with password confirmation, normalized email, bcrypt hashing at cost 12, Auth.js Credentials login/logout, and eight-hour JWT sessions.
-- Protected dashboard, paginated History, and saved analyses scoped to the authenticated user in every data query.
+- Protected dashboard, paginated History, and saved analyses scoped to the authenticated user in every data query. Recent analyses include a delete button with confirmation; deletion permanently removes the saved record from the dashboard and History. The server requires authentication, same-origin requests, and an atomic owner-scoped delete.
 - Fictional or fully de-identified real-case source declarations, explicit privacy checks, and browser-only PDF/DOCX/TXT extraction with an editable review step. Original files and filenames are not uploaded.
 - Admission H&P and Progress Note workflows; full-note input or optional collapsible sections. In-memory drafts survive mode switches while the form remains mounted. Only active fields are submitted.
 - Laboratory, cardiac, imaging, other diagnostic studies, data activities, history/examination, and assessment/plan fields. At least one active documentation field is required.
@@ -212,7 +212,7 @@ npm.cmd run test:auth
 npm.cmd run test:integration
 ```
 
-`test:auth` submits the real registration/login/logout server-action forms over HTTP, verifies hashed persistence, wrong-password/duplicate rejection, session refresh and protected redirects. `test:integration` saves all twelve fictional cases across both input modes, reopens complete reports/HPI, tests cross-user direct-ID/history denial and rejects invalid/empty/forged/identifier-containing/edited-fixture submissions. It uses locally signed sessions for the two ownership-test accounts; the separate auth test exercises actual Credentials login.
+`test:auth` submits the real registration/login/logout server-action forms over HTTP, verifies hashed persistence, wrong-password/duplicate rejection, session refresh and protected redirects. `test:integration` saves all twelve fictional cases across both input modes, reopens complete reports/HPI, tests cross-user direct-ID/history denial and owner deletion (including anonymous, cross-origin and foreign-owner rejection), and rejects invalid/empty/forged/identifier-containing/edited-fixture submissions. It uses locally signed sessions for the two ownership-test accounts; the separate auth test exercises actual Credentials login.
 
 Both scripts target localhost only, create uniquely named temporary accounts, and remove only their own accounts, analyses and throttle entries. They use the locally configured database, so select the intended development branch first. They never call OpenAI. `npm test` must run first to compile the integration fixtures.
 
@@ -252,7 +252,7 @@ Verification evidence:
 
 | Check | Result and limit |
 | --- | --- |
-| Unit tests | 85 passed; includes privacy/import validation, all twelve fixtures and 64 MDM combinations |
+| Unit tests | 87 passed; includes owner-scoped deletion, privacy/import validation, all twelve fixtures and 64 MDM combinations |
 | File parsers | Generated fictional selectable-text PDF, DOCX and UTF-8 text passed with the actual extraction libraries; browser UI/worker acceptance pending |
 | Lint and TypeScript | Passed |
 | Prisma schema validation | Passed |

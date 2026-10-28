@@ -131,9 +131,12 @@ h2 { font-size: clamp(27px, 3vw, 36px); line-height: 1.25; letter-spacing: -1.2p
 .roadmap li svg { flex-shrink: 0; margin-top: 3px; color: var(--teal); }
 .roadmap small { color: var(--muted); display: block; }
 .analysis-list { list-style: none; padding: 0; margin: 0; }
-.analysis-list a { display: flex; flex-direction: column; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.analysis-list li { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.analysis-list a { display: flex; flex: 1 1 220px; min-width: 0; flex-direction: column; overflow-wrap: anywhere; }
 .analysis-list a:hover { color: var(--teal); }
 .analysis-list small { color: var(--muted); }
+.analysis-delete { flex: 0 1 auto; max-width: 100%; }
+.delete-analysis-button { color: #9b242b; min-height: 44px; }
 .detail { max-width: 850px; margin: 32px auto; }
 .detail h1 { font-size: 32px; letter-spacing: -1px; }
 .detail pre { font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; color: var(--muted); }
