@@ -14,3 +14,7 @@ npm-debug.log*
 /Happy Hospitalist Card*.pdf
 /Danger Table Worksheet*.pdf
 /Scan 2021-9-8*.pdf
+
+# Root-level clinical reference documents stay local; never publish in the portfolio.
+/*.docx
+/*.pdf
