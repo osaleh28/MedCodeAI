@@ -19,14 +19,14 @@ export default function Home() {
         </div>
         <div className="preview" aria-label="Illustrative preview of the future analysis workspace">
           <div className="preview-bar"><div className="window-dots" aria-hidden="true"><i /><i /><i /></div><span>THE LEARNING WORKSPACE</span><Sparkles size={15} /></div>
-          <div className="preview-body"><span className="example-badge">ILLUSTRATIVE PREVIEW · PHASE 2</span><h3>From documentation to understanding.</h3>
+          <div className="preview-body"><span className="example-badge">ILLUSTRATIVE WORKSPACE PREVIEW</span><h3>From documentation to understanding.</h3>
             <div className="mock-note"><span className="label">Synthetic case excerpt</span><p>A fictional patient is evaluated during a hospital follow-up. The note describes the problems addressed, data reviewed, and management decisions.</p></div>
-            <div className="preview-result"><span className="label">A guided review</span><strong>Explore the reasoning behind the documentation</strong><p>Planned: MDM context, potentially supported CPT codes, and explanations you can learn from.</p></div>
-          </div><div className="preview-footer"><CheckCircle2 size={14} /> Preview only. AI analysis is not available in Phase 1.</div>
+            <div className="preview-result"><span className="label">A guided review</span><strong>Explore the reasoning behind the documentation</strong><p>Review source evidence, MDM conclusions, potentially supported CPT codes, and documentation questions.</p></div>
+          </div><div className="preview-footer"><CheckCircle2 size={14} /> Sign in to analyze a synthetic case or run a prepared example.</div>
         </div>
       </div></section>
       <div className="trust-strip"><div className="container trust-items"><span><Stethoscope size={17} /> Designed for hospitalist learning</span><span><BookOpen size={17} /> Education at every step</span><span><CheckCircle2 size={17} /> Synthetic cases, thoughtful practice</span></div></div>
-      <section className="section" id="features"><div className="container"><div className="section-heading"><span className="eyebrow">Clarity beyond the code</span><h2>Build confidence in the “why.”</h2><p>Practice connecting the clinical story to the decisions behind it. These learning tools are planned for Phase 2.</p></div>
+      <section className="section" id="features"><div className="container"><div className="section-heading"><span className="eyebrow">Clarity beyond the code</span><h2>Build confidence in the “why.”</h2><p>Practice connecting the clinical story to the decisions behind it, with evidence and uncertainty made visible.</p></div>
         <div className="feature-grid">{[
           { icon: FileText, title: "Understand your documentation", text: "Explore how a synthetic note communicates the problems addressed and the care provided." },
           { icon: ClipboardList, title: "Make sense of MDM", text: "Learn how documented problems, data, and management risk contribute to decision-making complexity." },
@@ -34,7 +34,7 @@ export default function Home() {
         ].map(({ icon: Icon, title, text }) => <article key={title} className="feature-card"><div className="feature-icon"><Icon size={23} /></div><h3>{title}</h3><p>{text}</p></article>)}</div>
       </div></section>
       <section className="section soft-section" id="how-it-works"><div className="container"><div className="section-heading"><span className="eyebrow">How it works</span><h2>Less guesswork. More understanding.</h2></div>
-        <div className="steps"><article className="step"><span className="step-number">01 / GET STARTED</span><h3>Create your learning space</h3><p>Register and sign in to your personal dashboard. Your account foundation is ready in Phase 1.</p></article><article className="step"><span className="step-number">02 / EXPLORE <span className="status-tag">Phase 2</span></span><h3>Work through a synthetic case</h3><p>Use fictional documentation to explore the relationship between the note and medical decision-making.</p></article><article className="step"><span className="step-number">03 / REFLECT <span className="status-tag">Phase 2</span></span><h3>Review and learn</h3><p>Understand the explanation, consider documentation gaps, and build your own judgment.</p></article></div>
+        <div className="steps"><article className="step"><span className="step-number">01 / GET STARTED</span><h3>Create your learning space</h3><p>Register and sign in to your personal dashboard. Your saved assessments belong to your account.</p></article><article className="step"><span className="step-number">02 / EXPLORE</span><h3>Work through a synthetic case</h3><p>Choose Admission H&P or Progress Note, then add a fictional full note or separate sections.</p></article><article className="step"><span className="step-number">03 / REFLECT</span><h3>Review and learn</h3><p>Compare documented facts, clinical interpretations, coding-rule conclusions, and uncertainties. Revisit the complete result in History.</p></article></div>
       </div></section>
       <section className="section responsible-use-section" id="responsible-use" aria-labelledby="responsible-use-heading"><div className="container">
         <div className="section-heading"><span className="eyebrow">Responsible use</span><h2 id="responsible-use-heading">A learning space with clear boundaries.</h2><p>Practice thoughtfully. Keep every case fictional and understand the limits of this educational demo.</p></div>

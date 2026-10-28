@@ -27,6 +27,15 @@ model BillingAnalysis {
   mdmComplexity        String?
   suggestedCptCode     String?
   rationale            String?  @db.Text
+  noteType             String?
+  inputMode            String?
+  submittedInput       Json?
+  structuredAnalysis   Json?
+  problemsComplexity   String?
+  dataComplexity       String?
+  riskComplexity       String?
+  documentationGaps    Json?
+  hpiRevision          String?  @db.Text
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

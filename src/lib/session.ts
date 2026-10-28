@@ -4,10 +4,15 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getDb } from "@/lib/db";
 
-export const requireUser = cache(async () => {
+export const currentUser = cache(async () => {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) return null;
   const user = await getDb().user.findUnique({ where: { id: session.user.id }, select: { id: true, name: true, email: true } });
+  return user;
+});
+
+export const requireUser = cache(async () => {
+  const user = await currentUser();
   if (!user) redirect("/login");
   return user;
 });

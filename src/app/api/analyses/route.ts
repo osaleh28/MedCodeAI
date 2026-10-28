@@ -1,0 +1,70 @@
+import { currentUser } from "@/lib/session";
+import { getDb } from "@/lib/db";
+import { allowAuthAttempt } from "@/lib/throttle";
+import { analysisInputSchema, containsObviousIdentifiers, normalizeDocumentation, noteLabels } from "@/lib/clinical/input";
+import { groundExtraction, validateHpi } from "@/lib/clinical/contracts";
+import { InputError, readLimitedJson, sameOrigin } from "@/lib/clinical/api-input";
+import { resolvePreparedCase } from "@/lib/clinical/demos";
+import { evaluateMdm } from "@/lib/clinical/mdm";
+import { extractClinicalDocumentation, getAiConfiguration, improveHpi } from "@/lib/clinical/openai";
+import { ProviderError } from "@/lib/clinical/provider-client";
+import { reportSchema } from "@/lib/clinical/report";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
+
+export async function POST(request: Request) {
+  try {
+    const user = await currentUser();
+    if (!user) return json({ error: "Sign in to analyze documentation." }, 401);
+    if (!sameOrigin(request)) return json({ error: "Submit documentation from this application's form." }, 403);
+    const parsed = analysisInputSchema.safeParse(await readLimitedJson(request));
+    if (!parsed.success) return json({ error: parsed.error.issues[0].message }, 400);
+    const input = parsed.data;
+    const note = normalizeDocumentation(input);
+    if (containsObviousIdentifiers(note)) return json({ error: "Potential personal identifiers were detected. Use an entirely invented case with no identifiers; no text was sent to the AI provider." }, 400);
+    const prepared = input.providerMode === "prepared_demo" ? resolvePreparedCase(input.sampleId, note, input.noteType) : null;
+    if (input.providerMode === "prepared_demo" && !prepared) return json({ error: "Prepared mode requires an unchanged built-in example. Use live AI for edited documentation." }, 400);
+    const configuration = prepared ? null : getAiConfiguration();
+    if (!(await allowAuthAttempt(user.id, prepared ? "demo" : "analysis"))) return json({ error: "Analysis limit reached. Try again in 15 minutes." }, 429);
+
+    // HPI is a separate operation on the original documentation, never an input
+    // to the MDM engine. Prepared fixtures are clearly labeled and never mixed
+    // with model output or used as a silent fallback for provider failures.
+    const [extracted, hpi] = prepared ? [prepared.extraction, input.improveHpi && prepared.hpi ? validateHpi(prepared.hpi, note) : null] : await Promise.all([
+      extractClinicalDocumentation(note, input.noteType),
+      input.improveHpi ? improveHpi(input.inputMode === "sections" ? input.sections.hpi.trim() : note) : Promise.resolve(null),
+    ]);
+    const extraction = groundExtraction(extracted, note);
+    const mdm = evaluateMdm(extraction, note, input.noteType);
+    const report = reportSchema.parse({ schemaVersion: 1, origin: input.providerMode, model: configuration?.model ?? null,
+      demoCaseId: prepared?.id ?? null, exampleRationale: prepared?.expected.rationale ?? null, extraction, mdm, hpi });
+    const record = await getDb().billingAnalysis.create({ data: {
+      userId: user.id, title: prepared?.title ?? `${noteLabels[input.noteType]} analysis`,
+      syntheticNote: note, syntheticDataConfirmed: true, noteType: input.noteType, inputMode: input.inputMode,
+      submittedInput: { fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? input.sections : {} },
+      structuredAnalysis: report, problemsComplexity: mdm.problems.level ?? "Indeterminate", dataComplexity: mdm.data.level ?? "Indeterminate", riskComplexity: mdm.risk.level ?? "Indeterminate",
+      mdmComplexity: mdm.overall ?? "Indeterminate", suggestedCptCode: mdm.potentialCode, rationale: mdm.explanation,
+      documentationGaps: extraction.gaps, hpiRevision: hpi?.suggestedHpi || null,
+    }, select: { id: true } });
+    return json(record, 201);
+  } catch (error) {
+    if (error instanceof InputError) return json({ error: error.message }, 400);
+    if (error instanceof ProviderError) {
+      console.error("[analysis] AI request failed", { category: error.code, status: error.status, providerCode: error.providerCode });
+      const messages = {
+        configuration: "Live AI analysis is currently unavailable. You can run an unchanged prepared example or try again later.",
+        timeout: "The AI request timed out. Nothing was saved. Please try again later.",
+        refusal: "The AI provider could not process this documentation. Nothing was saved. Try a fictional demonstration case.",
+        invalid_output: "The AI response could not be validated. Nothing was saved or assigned a code. Please try again later.",
+        unavailable: "The AI service is unavailable. Nothing was saved. Please try again later.",
+        quota: "The AI provider's quota or rate limit was reached. Please try later or run a prepared example.",
+      };
+      return json({ error: messages[error.code] }, error.code === "quota" ? 429 : error.code === "configuration" ? 503 : 502);
+    }
+    // No raw exceptions, SQL parameters, note text, credentials, or provider payloads.
+    console.error("[analysis] Request failed", { category: error instanceof Error ? error.name : "UnknownError" });
+    return json({ error: "The analysis could not be completed and saved. Please try again later." }, 500);
+  }
+}
