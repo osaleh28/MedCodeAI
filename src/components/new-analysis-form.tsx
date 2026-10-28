@@ -31,8 +31,10 @@ export function NewAnalysisForm() {
   const activeNote = normalizeDocumentation({ noteType, inputMode, fullNote, sections });
   const selectedSample = demoCases.find((sample) => sample.id === sampleId);
   const unchangedSample = selectedSample?.noteType === noteType && selectedSample.note === activeNote;
+  const usePreparedExample = unchangedSample && documentSource === "synthetic";
 
   function loadSample(id: string) {
+    if (!id) { setSampleId(null); setError(""); return; }
     const sample = demoCases.find((item) => item.id === id);
     if (!sample) return;
     if ((fullNote.trim() || Object.values(sections).some((value) => value.trim())) && !window.confirm("Replace both documentation drafts with this fictional example?")) return;
@@ -72,7 +74,7 @@ export function NewAnalysisForm() {
     finally { setPending(false); }
   }
 
-  return <form className="analysis-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit("openai"); }}>
+  return <form className="analysis-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit(usePreparedExample ? "prepared_demo" : "openai"); }}>
     <fieldset disabled={pending || importing} className="analysis-fieldset">
       <legend className="sr-only">Educational documentation analysis</legend>
       <MdmLearningGuide />
@@ -83,7 +85,7 @@ export function NewAnalysisForm() {
         <p id="encounter-scope" className="field-help mt-3">This demo evaluates these two hospital-care categories only. Consultation, critical-care, discharge, and same-day admission/discharge coding are outside its scope.</p>
       </section>
 
-      <section className="panel"><div className="sample-picker"><div><h2>Try a fictional case</h2><p>Load a case and choose Run live AI analysis to see OpenAI analyze its documentation. You can also edit the fictional note before analyzing.</p></div><div className="field"><label htmlFor="demo-case">Synthetic example</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup><optgroup label="Danger Table Worksheet practice — updated framework">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
+      <section className="panel"><div className="sample-picker"><div><h2>Load a complete example note</h2><p>Selecting an example fills in the documentation below. Review the note, then choose Run prepared example to see its teaching assessment. You do not need to write a note.</p></div><div className="field"><label htmlFor="demo-case">Choose an example note</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title.replace("Worksheet practice", "Teaching example")}</option>)}</optgroup><optgroup label="MDM teaching examples">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title.replace("Worksheet practice", "Teaching example")}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
 
       {noteType === "progress" && <ProgressNoteGuide />}
 
@@ -97,12 +99,15 @@ export function NewAnalysisForm() {
         {noteType === "admission" && <div className="hpi-option"><label className="checkbox-label"><input type="checkbox" checked={improveHpi} onChange={(e) => setImproveHpi(e.target.checked)} /><span><strong>Improve HPI (optional)</strong><br />Include a separate wording suggestion and clarification questions. It will not replace your note or affect the MDM calculation.</span></label></div>}
       </section>
 
-      <section className="panel"><h2>3. Review and analyze</h2><label className="checkbox-label mt-5"><input type="checkbox" checked={privacyConfirmed} onChange={(e) => setPrivacyConfirmed(e.target.checked)} required /><span>I confirm the active documentation contains no identifying patient information and I am authorized to use it. Live analysis sends the reviewed text to OpenAI; the submitted text and results are saved to my account.</span></label>
+      <section className="panel"><h2>3. Review and analyze</h2><label className="checkbox-label mt-5"><input type="checkbox" checked={privacyConfirmed} onChange={(e) => setPrivacyConfirmed(e.target.checked)} required /><span>I confirm the active documentation contains no identifying patient information and I am authorized to use it. {usePreparedExample ? "The submitted text and prepared results are saved to my account without an AI request." : "Live analysis sends the reviewed text to OpenAI; the submitted text and results are saved to my account."}</span></label>
         {documentSource === "deidentified" && <label className="checkbox-label mt-4"><input type="checkbox" checked={deidentificationConfirmed} onChange={(e) => setDeidentificationConfirmed(e.target.checked)} required /><span>This real-case note was fully de-identified before entering this app, including identifying dates and contextual details. I reviewed it and understand automated screening cannot verify this.</span></label>}
-        <div className="analysis-actions"><button className="button primary" type="submit" disabled={pending}>{pending ? <><LoaderCircle size={18} className="spin" /> Analyzing and saving…</> : <>Run live AI analysis <ArrowRight size={17} /></>}</button>
-          {unchangedSample && documentSource === "synthetic" && <button className="button secondary" type="button" disabled={pending} onClick={() => void submit("prepared_demo")}><FlaskConical size={17} /> Run prepared example</button>}
-        </div><p className="field-help mt-3">Prepared examples use a reviewed fixture, not a live AI call. Editing a case requires live AI analysis. Results may take up to a minute.</p>
-        <div aria-live="polite" aria-atomic="true">{pending && <p className="field-help mt-3" role="status">Checking documentation, evaluating MDM, and saving your results. Please keep this page open.</p>}{error && <p ref={errorRef} tabIndex={-1} role="alert" className="form-error mt-4">{error}</p>}</div>
+        <div className="analysis-actions"><button className="button primary" type="submit" disabled={pending} aria-describedby="analysis-mode-help">{pending ? <><LoaderCircle size={18} className="spin" /> {usePreparedExample ? "Loading and saving..." : "Analyzing and saving..."}</> : usePreparedExample ? <><FlaskConical size={17} /> Run prepared example</> : <>Run live AI analysis <ArrowRight size={17} /></>}</button></div>
+        <p id="analysis-mode-help" className="field-help mt-3">{usePreparedExample
+          ? "This complete fictional note uses a built-in teaching assessment. No AI request is made. Your result is saved to History."
+          : selectedSample
+            ? "This note differs from the selected fictional example or its source setting has changed. Live AI analyzes the active documentation, then saves the result."
+            : "Notes you paste, import, or write use live AI analysis. Use fictional or fully de-identified documentation only."} {!usePreparedExample && "Live analysis sends the reviewed text to OpenAI and may take up to a minute."}</p>
+        <div aria-live="polite" aria-atomic="true">{pending && <p className="field-help mt-3" role="status">{usePreparedExample ? "Loading the prepared teaching assessment and saving your results. Please keep this page open." : "Analyzing documentation with AI, evaluating MDM, and saving your results. Please keep this page open."}</p>}{error && <p ref={errorRef} tabIndex={-1} role="alert" className="form-error mt-4">{error}</p>}</div>
       </section>
     </fieldset>
   </form>;

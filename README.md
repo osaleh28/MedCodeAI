@@ -142,10 +142,10 @@ Open the **Local** URL printed by Next.js. Set `AUTH_URL` to that origin; if por
 1. Sign in and open **New analysis**.
 2. Choose a built-in fictional example, enter a fictional note, or select **De-identified real-case note** for material already fully de-identified. Both input modes support live analysis. PDF, DOCX and TXT imports show editable extracted text before applying it to the full-note draft.
 3. Review the selected encounter assumption and confirm the encounter and privacy acknowledgements. Real-case notes require an additional de-identification confirmation. Enable **Improve HPI** for an admission if desired.
-4. Choose **Run live AI analysis**. This sends the active reviewed documentation to OpenAI, then evaluates the returned clinical extraction with the separate rules engine.
-5. Review the **Live AI extraction** origin label, source excerpts, three MDM elements, potential CPT, and clarification questions. Reopen the result from History.
+4. The form shows one analysis button. An unchanged selected built-in note shows **Run prepared example**, which uses a built-in teaching assessment without an OpenAI request. Notes you paste, import, write or edit show **Run live AI analysis**, which sends the reviewed documentation to OpenAI before the separate rules engine evaluates it.
+5. Review the **Prepared educational example** or **Live AI extraction** origin label, source excerpts, three MDM elements, potential CPT, and clarification questions. Reopen the result from History.
 
-**Run prepared example** remains a separate, explicitly labeled fixture action. It is never used as a silent fallback for live analysis. Edited fictional cases can still use live analysis. Old saved indeterminate results are not recalculated; submit a new analysis after these fixes are deployed.
+The visible button and supporting text identify the analysis method before submission. Prepared mode applies only to an unchanged selected fictional example and is never a silent fallback for provider errors. Edited examples and custom fictional notes use live AI. Old saved indeterminate results are not recalculated; submit a new analysis after these fixes are deployed.
 
 ### Note imports and source declarations
 
@@ -272,7 +272,7 @@ Verification evidence:
 
 Migration ledger/column inspection is not an exhaustive Prisma schema-drift proof. Native `prisma migrate status`/drift tooling should be run from a normal permitted terminal before a release. No migration was applied during Phase 3.
 
-**Readiness:** both prepared mode and live analysis work locally. The most recent change was verified with two live moderate cases, including a fictional control exercising the de-identified declaration; the prior broader check covered all six core fictional cases. The live incomplete-documentation control remains indeterminate. The form makes Run live AI analysis the primary action; its results are new provider responses, not substituted fixtures. Final portfolio sign-off still requires browser acceptance and authenticated/live checks on the approved Vercel deployment. An authenticated production check confirmed login and database access, but its live request returned a configuration-error 503 before reaching OpenAI. The active deployment must load a usable Production OPENAI_API_KEY. AI interpretations still require review, and other notes may correctly return indeterminate results.
+**Readiness:** both prepared mode and live analysis work locally. The most recent change was verified with two live moderate cases, including a fictional control exercising the de-identified declaration; the prior broader check covered all six core fictional cases. The live incomplete-documentation control remains indeterminate. The form shows one analysis action: a prepared assessment for an unchanged selected example, or live AI for custom/imported/edited documentation. Live results are new provider responses, not substituted fixtures. Final portfolio sign-off still requires browser acceptance and authenticated/live checks on the approved Vercel deployment. An authenticated production check confirmed login and database access, but its live request returned a configuration-error 503 before reaching OpenAI. The active deployment must load a usable Production OPENAI_API_KEY. AI interpretations still require review, and other notes may correctly return indeterminate results.
 
 ## Vercel release
 
