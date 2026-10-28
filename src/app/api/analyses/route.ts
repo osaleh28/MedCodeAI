@@ -9,6 +9,7 @@ import { evaluateMdm } from "@/lib/clinical/mdm";
 import { extractClinicalDocumentation, getAiConfiguration, improveHpi } from "@/lib/clinical/openai";
 import { ProviderError } from "@/lib/clinical/provider-client";
 import { reportSchema } from "@/lib/clinical/report";
+import { addProgressClarifications } from "@/lib/clinical/progress-guidance";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
       extractClinicalDocumentation(note, input.noteType),
       input.improveHpi ? improveHpi(input.inputMode === "sections" ? input.sections.hpi.trim() : note) : Promise.resolve(null),
     ]);
-    const extraction = groundExtraction(extracted, note);
+    const extraction = addProgressClarifications(groundExtraction(extracted, note), note, input.noteType);
     const mdm = evaluateMdm(extraction, note, input.noteType);
     const report = reportSchema.parse({ schemaVersion: 1, origin: input.providerMode, model: configuration?.model ?? null,
       demoCaseId: prepared?.id ?? null, exampleRationale: prepared?.expected.rationale ?? null, extraction, mdm, hpi });

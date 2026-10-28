@@ -6,6 +6,7 @@ import { ArrowRight, FlaskConical, LoaderCircle } from "lucide-react";
 import { analysisInputSchema, emptySections, noteLabels, normalizeDocumentation, sectionKeys, sectionLabels, type NoteType } from "@/lib/clinical/input";
 import { demoCases } from "@/lib/clinical/demos";
 import { MdmLearningGuide } from "@/components/mdm-learning-guide";
+import { ProgressNoteGuide } from "@/components/progress-note-guide";
 
 export function NewAnalysisForm() {
   const router = useRouter();
@@ -74,6 +75,7 @@ export function NewAnalysisForm() {
       <section className="panel"><div className="sample-picker"><div><h2>Try a fictional case</h2><p>Load a case, review its documentation, and choose live AI or its prepared educational extraction.</p></div><div className="field"><label htmlFor="demo-case">Synthetic example</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup><optgroup label="Danger Table Worksheet practice — updated framework">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
 
       <MdmLearningGuide />
+      {noteType === "progress" && <ProgressNoteGuide />}
 
       <section className="panel"><div className="panel-heading"><h2>2. Add synthetic documentation</h2></div>
         <fieldset className="input-mode-options"><legend>Input method</legend>{(["full", "sections"] as const).map((mode) => <label key={mode}><input type="radio" name="inputMode" checked={inputMode === mode} onChange={() => setInputMode(mode)} /> {mode === "full" ? "Full note" : "Separate sections"}</label>)}</fieldset>
