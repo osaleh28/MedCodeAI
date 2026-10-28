@@ -31,6 +31,16 @@ Phase 1 authentication and account behavior are preserved. Phase 2 extends the e
 - `/dashboard/history` paginates only the signed-in user's records. Saved details and `/api/analyses/[id]` enforce the same ownership boundary. Earlier Phase 1 records remain readable without inventing Phase 2 results.
 - Twelve fictional cases include six core lower/moderate/high examples and six worksheet practice cases. **Run prepared example** uses an explicitly labeled fixture with independently specified expected outcomes, tested through the rules engine. It does not call OpenAI. Edited notes cannot silently use prepared fixtures.
 
+The six core examples were rewritten after reviewing all 13 pages of `Scan 2021-9-8 02.15.09 (1).pdf` and all 14 pages of `Scan 2021-9-8 02.26.28 (1).pdf`. These supplied E/M University sheets and handwritten annotations use historical 1995/1997 documentation and problem/data-point methods, with examples dated 2008–2010. They are topic references, not the governing rules or treatment protocols. The application contains original fictional scenarios, not reproduced scan text, dollar amounts, or historical scoring tables. Raw scans remain local and ignored by Git.
+
+| Core scenario | Problems / data / risk | Initial / subsequent potential CPT |
+| --- | --- | --- |
+| Improving uncomplicated gastroenteritis, reassessment of oral tolerance, supportive decisions | Low / Straightforward / Low | 99221 / 99231 |
+| Nonsevere COPD exacerbation with treatment decisions and active hypertension/diabetes review | Moderate / Moderate / Moderate | 99222 / 99232 |
+| Decompensated systolic heart failure with a documented respiratory organ threat and actual admission/escalation decision | High / Moderate / High | 99223 / 99233 |
+
+Admission examples include a reason for evaluation, symptom timeline, relevant obtained ROS and history, examination, and explicit plan. Progress examples instead describe today's reason for review, attributed overnight nursing observations, patient symptoms, changes since the prior day, and decisions based on reassessment. Diagnostic results are separated from documented review activities; a listed EKG receives no activity credit. Lab panels count once. The moderate progress case specifically teaches that improvement and IV-to-oral transition do not automatically lower MDM. High risk is supported by an actual admission/escalation decision, not IV diuretics or routine response monitoring. All outcomes assume the selected hospital family and exclude a distinct critical-care or discharge service. These are coding-education fixtures, not clinical or billing validation or recommended patient treatment.
+
 ### Danger Table Worksheet incorporation
 
 The locally supplied `Danger Table Worksheet (1).pdf` was visually reviewed. Its diagnosis/data point totals and combined legacy risk table are not used for present-day hospital code selection. The application incorporates the teaching topics through original fictional cases, an expandable guide on the New Analysis/results pages, and extraction instructions that keep problems, data, and current management decisions distinct.
