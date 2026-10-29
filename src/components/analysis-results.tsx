@@ -3,6 +3,7 @@ import { dataKinds, type EvidenceFinding } from "@/lib/clinical/contracts";
 import { noteLabels, type NoteType } from "@/lib/clinical/input";
 import { ruleSources } from "@/lib/clinical/mdm";
 import { documentSourceLabels } from "@/lib/clinical/privacy";
+import { billingContextLabels } from "@/lib/clinical/billing-context";
 import type { SavedReport } from "@/lib/clinical/report";
 import { MdmLearningGuide } from "@/components/mdm-learning-guide";
 import { ProgressNoteGuide } from "@/components/progress-note-guide";
@@ -30,6 +31,7 @@ export function AnalysisResults({ report, note, noteType, inputMode }: { report:
 
     <div className="result-legend" aria-label="How to read this assessment"><span><i className="legend-dot facts" /> Documented facts: exact note excerpts</span><span><i className="legend-dot interpretation" /> AI interpretations: extracted clinical categories</span><span><i className="legend-dot rules" /> Rule conclusions: deterministic calculations</span><span><i className="legend-dot uncertain" /> Uncertainties: no assumed credit</span></div>
     <p className="field-help">Source declared by user: {documentSourceLabels[report.documentSource]}. Source classification and de-identification are not independently verified.</p>
+    {Object.values(report.billingContext).some(Boolean) && <details className="panel result-section"><summary>Reporting details confirmed by the user</summary><p className="field-help mt-3">These confirmations are separate from the original note. They do not establish that an activity occurred; the analysis still requires clinical source evidence.</p><ul className="result-list">{(Object.keys(billingContextLabels) as (keyof typeof billingContextLabels)[]).filter((key) => report.billingContext[key]).map((key) => <li key={key}>{billingContextLabels[key]}</li>)}</ul></details>}
     <p className="origin-notice">{report.origin === "prepared_demo" ? "Prepared educational example: the extraction is a built-in fixture, not a live AI response." : `Live AI extraction · ${report.model ?? "configured model"}. The model did not select the final code.`}</p>
     <section className="panel"><span className="label">{report.origin === "prepared_demo" ? "Prepared clinical interpretation" : "AI interpretation"}</span><h2>Clinical summary</h2><p className="mt-4">{extraction.summary}</p>{report.exampleRationale && <p className="mt-3"><strong>Example rule check:</strong> {report.exampleRationale}</p>}</section>
 

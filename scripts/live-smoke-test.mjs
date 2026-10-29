@@ -16,6 +16,8 @@ const { evaluateMdm } = await import(new URL("mdm.js", root).href);
 const { configuredApiKey } = await import(new URL("provider-client.js", root).href);
 const { infectionOrdersCase } = await import(new URL("../../../tests/fixtures/infection-orders.js", root).href);
 const { respiratoryAdmissionCase } = await import(new URL("../../../tests/fixtures/respiratory-admission.js", root).href);
+const { reviewedRespiratoryCase, referenceOnlyRespiratoryCase } = await import(new URL("../../../tests/fixtures/reviewed-respiratory-data.js", root).href);
+const { emptyBillingContext } = await import(new URL("billing-context.js", root).href);
 configuredApiKey(process.env.OPENAI_API_KEY);
 const base = new URL(process.env.MEDCODE_TEST_URL || process.env.AUTH_URL || "http://localhost:3000");
 assert.ok(["localhost", "127.0.0.1"].includes(base.hostname), "Live smoke tests must target localhost.");
@@ -28,11 +30,11 @@ const cookieName = base.protocol === "https:" ? "__Secure-authjs.session-token" 
 const headers = { Origin: base.origin, "Content-Type": "application/json", Cookie: `${cookieName}=${await encode({ token: { sub: id }, secret: process.env.AUTH_SECRET, salt: cookieName, maxAge: 600 })}` };
 try {
   await db.query('INSERT INTO "User" (id,name,email,"passwordHash","updatedAt") VALUES ($1,$2,$3,$4,NOW())', [id, "Synthetic Live Audit", `${id}@example.invalid`, await hash(randomBytes(24).toString("base64"), 12)]);
-  const caseIds = process.argv.includes("--context") ? ["admission-respiratory-context", "admission-respiratory-context", "admission-orders", "admission-lower", "admission-moderate", "progress-moderate", "progress-high"] : process.argv.includes("--orders") ? ["admission-orders", "admission-unresolved-test"] : process.argv.includes("--core")
+  const caseIds = process.argv.includes("--reporting") ? ["admission-reviewed-data-unconfirmed", "admission-reviewed-data", "admission-reviewed-data", "admission-reporting-confirmations-only"] : process.argv.includes("--context") ? ["admission-respiratory-context", "admission-respiratory-context", "admission-orders", "admission-lower", "admission-moderate", "progress-moderate", "progress-high"] : process.argv.includes("--orders") ? ["admission-orders", "admission-unresolved-test"] : process.argv.includes("--core")
     ? [...demoCases.filter((sample) => /^(admission|progress)-(lower|moderate|high)$/.test(sample.id)).map((sample) => sample.id), "progress-incomplete"]
     : ["admission-moderate", "progress-moderate"];
   for (const [index, sampleId] of caseIds.entries()) {
-    let sample = sampleId === "admission-respiratory-context" ? respiratoryAdmissionCase : sampleId === "admission-orders" ? infectionOrdersCase : sampleId === "admission-unresolved-test" ? (() => {
+    let sample = sampleId === "admission-reviewed-data" ? reviewedRespiratoryCase : sampleId === "admission-reporting-confirmations-only" ? referenceOnlyRespiratoryCase : sampleId === "admission-reviewed-data-unconfirmed" ? { ...reviewedRespiratoryCase, billingContext: emptyBillingContext, expected: { code: null, minimumCode: "99222" } } : sampleId === "admission-respiratory-context" ? respiratoryAdmissionCase : sampleId === "admission-orders" ? infectionOrdersCase : sampleId === "admission-unresolved-test" ? (() => {
       const sections = { ...infectionOrdersCase.sections, assessmentPlan: infectionOrdersCase.sections.assessmentPlan
         .replace("We will send urine Legionella antigen. We will order urinalysis. I have ordered a standalone TSH assay.", "I have ordered an echocardiogram.") };
       return { ...infectionOrdersCase, id: sampleId, sections, note: normalizeDocumentation({ noteType: "admission", inputMode: "sections", fullNote: "", sections }), expected: { code: null, minimumCode: "99222" } };
@@ -45,7 +47,7 @@ try {
       sample = { ...sample, sections, note: normalizeDocumentation({ noteType: sample.noteType, inputMode: "sections", fullNote: "", sections }) };
     }
     const inputMode = index % 2 ? "sections" : "full";
-    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), documentSource: index % 2 ? "deidentified" : "synthetic", privacyConfirmed: true, deidentificationConfirmed: index % 2 === 1, encounterConfirmed: true, improveHpi: sample.noteType === "admission" && !process.argv.includes("--orders") && !process.argv.includes("--context"), providerMode: "openai", sampleId: null };
+    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), documentSource: index % 2 ? "deidentified" : "synthetic", privacyConfirmed: true, deidentificationConfirmed: index % 2 === 1, encounterConfirmed: true, improveHpi: sample.noteType === "admission" && !process.argv.includes("--orders") && !process.argv.includes("--context") && !process.argv.includes("--reporting"), providerMode: "openai", sampleId: null, billingContext: sample.billingContext ?? emptyBillingContext };
     const response = await fetch(new URL("/api/analyses", base), { method: "POST", headers, body: JSON.stringify(input), signal: AbortSignal.timeout(60_000) });
     const result = await response.json();
     assert.equal(response.status, 201, result.error || "Live analysis was not saved.");
@@ -59,8 +61,11 @@ try {
     assert.equal(record.submittedInput.documentSource, input.documentSource);
     assert.equal(record.syntheticDataConfirmed, input.documentSource === "synthetic");
     const report = reportSchema.parse(record.structuredAnalysis);
+    if (process.argv.includes("--reporting")) console.log(JSON.stringify({ case: sampleId, code: report.mdm.potentialCode, minimum: report.mdm.minimumSupportedCode, dataComplete: report.extraction.dataComplete, data: report.extraction.data.map(({activity, uniqueKey, qualifies, uncertain, separatelyReported, performedByOther}) => ({activity, uniqueKey, qualifies, uncertain, separatelyReported, performedByOther})) }));
     assert.equal(report.origin, "openai");
     assert.equal(report.documentSource, input.documentSource);
+    assert.deepEqual(report.billingContext, sample.billingContext ?? emptyBillingContext);
+    assert.deepEqual(record.submittedInput.billingContext, sample.billingContext ?? emptyBillingContext);
     assert.ok(report.model);
     const findings = [...report.extraction.problems, ...report.extraction.data, ...report.extraction.risks];
     for (const finding of findings.filter((item) => !item.uncertain)) {
@@ -76,10 +81,19 @@ try {
       assert.equal(report.mdm.minimumSupportedCode, sample.expected.minimumCode);
       assert.equal(record.mdmComplexity, `At least ${report.mdm.minimum}`);
     }
+    if (sampleId.startsWith("admission-reviewed-data")) {
+      const copd = report.extraction.problems.find((item) => /copd|obstructive/i.test(`${item.label} ${item.problemKey}`));
+      assert.ok(copd, "The documented COPD exacerbation must be extracted.");
+      assert.equal(copd.criterion, "chronic_flare", "COPD exacerbation is not a traumatic injury.");
+      assert.equal(copd.course, "chronic");
+      assert.ok(report.mdm.data.credited.some((item) => /lactate|lactic acid/i.test(item)), "Reviewed lactate must receive its own eligible test credit.");
+      if (sampleId === "admission-reviewed-data") assert.equal(report.mdm.data.level, "High");
+    }
     const page = await fetch(new URL(`/dashboard/analyses/${result.id}`, base), { headers });
     assert.equal(page.status, 200);
     const resultHtml = await page.text();
     assert.ok(resultHtml.includes("Live AI extraction"));
+    if (Object.values(sample.billingContext ?? emptyBillingContext).some(Boolean)) assert.ok(resultHtml.includes("Reporting details confirmed by the user"));
     if (sample.expected.minimumCode) {
       assert.ok(resultHtml.includes("Minimum supported CPT code"));
       assert.ok(resultHtml.includes(sample.expected.minimumCode));

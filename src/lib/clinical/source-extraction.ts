@@ -36,8 +36,8 @@ export function sourceExtractionSchema(source: SourceSpan[]) {
       explanation: z.string(), evidence: evidence.min(1),
     }).strict()).describe("Only explicit SERVICE CATEGORY conflicts with the selected encounter. Never list diagnoses, symptoms, presenting complaints, documentation questions, or missing administrative details. Usually empty for an aligned hospital note."),
     problems: z.array(z.object({
-      label: p.label, problemKey: p.problemKey, course: p.course, addressed: p.addressed,
-      criterion: p.criterion.describe("Assess documented near-term severity without treatment. organ_threat can be supported by acute respiratory compromise with significant hypoxemia, increased work of breathing and new oxygen treatment; exact diagnostic phrases are not required. Do not invent respiratory failure. Stabilization after initial treatment does not automatically make the same actively managed illness stable_acute. A diagnosis name, isolated value or baseline oxygen alone is insufficient."), management: p.management, explanation: p.explanation,
+      label: p.label, problemKey: p.problemKey, course: p.course.describe("Underlying condition course: COPD/asthma/heart failure exacerbations remain chronic illnesses despite an acute flare."), addressed: p.addressed,
+      criterion: p.criterion.describe("COPD exacerbation is chronic_flare unless severe_chronic_flare/organ_threat is supported. complicated_injury is only for an actual physical injury, never pneumonia/COPD or another illness. Assess documented near-term severity without treatment. organ_threat can be supported by acute respiratory compromise with significant hypoxemia, increased work of breathing and new oxygen treatment; exact diagnostic phrases are not required. Do not invent respiratory failure. Stabilization after initial treatment does not automatically make the same actively managed illness stable_acute. A diagnosis name, isolated value or baseline oxygen alone is insufficient."), management: p.management, explanation: p.explanation,
       evidence, uncertain: p.uncertain,
     }).strict()),
     managementDecisions: z.array(z.object({
@@ -47,8 +47,9 @@ export function sourceExtractionSchema(source: SourceSpan[]) {
     }).strict()).describe("All actual documented management decisions, including supportive hydration/diet and reasoned prescription choices. Do not return an empty list merely because there is no high-risk management."),
     data: z.array(z.object({
       label: d.label, kind: d.kind, activity: d.activity,
-      uniqueKey: d.uniqueKey.describe("Use exactly blood_count, metabolic_panel, electrocardiogram, chest_radiograph, urinalysis, thyroid_stimulating_hormone, legionella_urine_antigen for these groups; no suffixes. Standalone TSH only, not an unspecified/reflex thyroid panel. Urine antigen is distinct from routine urinalysis. Other tests/sources retain their own stable identity."),
-      qualifies: d.qualifies, separatelyReported: d.separatelyReported, performedByOther: d.performedByOther,
+      uniqueKey: d.uniqueKey.describe("Use exactly blood_count, metabolic_panel, electrocardiogram, chest_radiograph, urinalysis, thyroid_stimulating_hormone, legionella_urine_antigen, blood_lactate, spirometry for these groups; no suffixes. CBC and BMP are separate panels. Standalone TSH only. Generic PFTs are not necessarily spirometry. Other tests/sources retain their own stable identity."),
+      qualifies: d.qualifies.describe("Whether the actual clinical activity/source qualifies. A Labs Reviewed heading applies to its listed tests, including a normal lactate. Keep billing uncertainty in separatelyReported/performedByOther; do not erase a clear activity merely because reporting information is unknown."),
+      separatelyReported: d.separatelyReported.describe("Separate reporting by THIS E/M clinician, not a radiologist/pulmonologist billing their own service. Apply explicit user reporting confirmations to documented activities only; otherwise preserve genuine uncertainty."), performedByOther: d.performedByOther,
       explanation: d.explanation, evidence, uncertain: d.uncertain,
     }).strict()),
     gaps: z.array(gaps.element.extend({ evidence })),

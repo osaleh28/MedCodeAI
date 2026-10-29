@@ -2,7 +2,7 @@ import { z } from "zod";
 import { hasGroundedEvidence, type ClinicalExtraction, type EvidenceFinding } from "./contracts";
 import type { NoteType } from "./input";
 
-export const RULE_VERSION = "hospital-mdm-2023-public-v3";
+export const RULE_VERSION = "hospital-mdm-2023-public-v4";
 export const ruleSources = [
   { title: "AMA hospital E/M guidelines, effective January 2023 (Table 1 and hospital descriptors)", url: "https://www.ama-assn.org/system/files/2023-e-m-descriptors-guidelines.pdf" },
   { title: "AMA E/M clarifications, updated January 2026", url: "https://www.ama-assn.org/practice-management/cpt/cpt-evaluation-and-management-em-revisions-faqs" },
@@ -10,11 +10,13 @@ export const ruleSources = [
   { title: "CMS test identity reference: urinalysis (overlapping methods grouped conservatively)", url: "https://www.cms.gov/files/document/transparency-coverage-500-items-services-508.pdf" },
   { title: "Mayo Clinic Laboratories: standalone TSH test identity", url: "https://www.mayocliniclabs.com/api/sitecore/TestCatalog/DownloadTestCatalog?testId=8939" },
   { title: "Benefis Health System test catalog: Legionella urine antigen identity", url: "https://benefis.testcatalog.org/show/LEGAG" },
+  { title: "Mayo Clinic Laboratories: blood lactate identity", url: "https://www.mayocliniclabs.com/test-catalog/overview/601685" },
+  { title: "ATS/CHEST January 2026: spirometry methods and overlapping components", url: "https://thoracic-society.files.svdcdn.com/production/ATS-CBQ-Fall-25-R2.pdf?dm=1768507918" },
 ];
 export const levels = ["Straightforward", "Low", "Moderate", "High"] as const;
 // Intentionally limited verified identity catalog. Unmapped diagnostic tests are
 // displayed but cannot earn definite unique-test credit in this MVP.
-export const supportedTestKeys = new Set(["blood_count", "metabolic_panel", "electrocardiogram", "chest_radiograph", "urinalysis", "thyroid_stimulating_hormone", "legionella_urine_antigen"]);
+export const supportedTestKeys = new Set(["blood_count", "metabolic_panel", "electrocardiogram", "chest_radiograph", "urinalysis", "thyroid_stimulating_hormone", "legionella_urine_antigen", "blood_lactate", "spirometry"]);
 export type MdmLevel = typeof levels[number];
 const levelSchema = z.enum(levels);
 const elementSchema = z.object({
@@ -95,6 +97,8 @@ export function canonicalTestKey(key: string) {
     ua: "urinalysis", urine_dipstick: "urinalysis", urinalysis_with_microscopy: "urinalysis", urinalysis_without_microscopy: "urinalysis", urine_microscopy: "urinalysis",
     tsh: "thyroid_stimulating_hormone", serum_tsh: "thyroid_stimulating_hormone", thyroid_stimulating_hormone_assay: "thyroid_stimulating_hormone",
     urine_legionella_antigen: "legionella_urine_antigen", legionella_antigen_urine: "legionella_urine_antigen", legionella_urinary_antigen: "legionella_urine_antigen",
+    lactate: "blood_lactate", serum_lactate: "blood_lactate", plasma_lactate: "blood_lactate", lactic_acid: "blood_lactate", blood_lactic_acid: "blood_lactate",
+    spirometry_with_bronchodilator: "spirometry", spirometry_pre_post_bronchodilator: "spirometry", spirometry_with_bronchodilator_response: "spirometry",
   };
   return aliases[value] ?? value;
 }
@@ -208,7 +212,7 @@ export function evaluateMdm(extraction: ClinicalExtraction, note: string, noteTy
       "Initial/subsequent inpatient or observation encounter assumed by the user; note titles do not establish eligibility. No time-based coding, consultations, critical care, discharge, same-day admission/discharge, modifiers, or payer-specific edits.",
       "Uncertain findings are excluded from definite credit. If ambiguity could change the level, the exact final level remains unresolved. A separately labeled minimum supported code may be shown when two definite elements establish at least low MDM. No code is supplied from missing evidence or a conflicting service category. Two unambiguous high elements can establish high MDM despite an unknown third element.",
       "Test identity/overlap, external-source eligibility, independent interpretation, separate reporting, and clinical severity require human review. Unverifiable activities are not credited.",
-      "Definite test identities in this MVP cover blood-count panels, overlapping metabolic panels, ECG, chest radiographs, urinalysis, standalone TSH, and Legionella urine antigen. Urinalysis methods/components are grouped conservatively. Other studies, reflex panels, and uncertain identities remain unresolved; results alone receive no activity credit. Lab catalog references establish identity only, not E/M eligibility or clinical validation.",
+      "Definite test identities in this MVP cover blood-count panels, overlapping metabolic panels, ECG, chest radiographs, urinalysis, standalone TSH, Legionella urine antigen, blood lactate and spirometry. Urinalysis/spirometry methods and overlapping components are grouped conservatively. Generic PFTs, other studies, reflex panels, and uncertain identities remain unresolved; results alone receive no activity credit. Identity references do not establish E/M eligibility or clinical validation.",
       "Only original documentation is evaluated; HPI wording suggestions do not enter the coding engine.",
     ],
   };

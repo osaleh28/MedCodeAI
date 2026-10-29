@@ -8,6 +8,7 @@ import { demoCases } from "@/lib/clinical/demos";
 import { MdmLearningGuide } from "@/components/mdm-learning-guide";
 import { NoteFileImport } from "@/components/note-file-import";
 import { documentSourceLabels, potentialIdentifiers, type DocumentSource } from "@/lib/clinical/privacy";
+import { billingContextLabels, emptyBillingContext } from "@/lib/clinical/billing-context";
 import { ProgressNoteGuide } from "@/components/progress-note-guide";
 
 export function NewAnalysisForm() {
@@ -19,8 +20,9 @@ export function NewAnalysisForm() {
   const [documentSource, setDocumentSource] = useState<DocumentSource>("synthetic");
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const [deidentificationConfirmed, setDeidentificationConfirmed] = useState(false);
+  const [billingContext, setBillingContext] = useState({ ...emptyBillingContext });
   const [importing, setImporting] = useState(false);
-  function resetPrivacy() { setPrivacyConfirmed(false); setDeidentificationConfirmed(false); }
+  function resetPrivacy() { setPrivacyConfirmed(false); setDeidentificationConfirmed(false); setBillingContext({ ...emptyBillingContext }); }
   const [encounterConfirmed, setEncounterConfirmed] = useState(false);
   const [improveHpi, setImproveHpi] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function NewAnalysisForm() {
     const activeSections = { ...emptySections };
     if (inputMode === "sections") for (const key of sectionKeys(noteType)) activeSections[key] = sections[key];
     const input = analysisInputSchema.safeParse({ noteType, inputMode, fullNote: inputMode === "full" ? fullNote : "", sections: activeSections,
-      documentSource, privacyConfirmed, deidentificationConfirmed, encounterConfirmed, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
+      documentSource, privacyConfirmed, deidentificationConfirmed, billingContext: providerMode === "prepared_demo" ? emptyBillingContext : billingContext, encounterConfirmed, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
     if (!input.success) {
       setError(input.error.issues.map((issue) => issue.path[0] === "encounterConfirmed"
         ? "Step 1: confirm this example represents the initial hospital visit or subsequent hospital visit selected above."
@@ -98,6 +100,8 @@ export function NewAnalysisForm() {
         {inputMode === "full" ? <div className="field"><label htmlFor="full-note">Complete {noteLabels[noteType]}</label><textarea id="full-note" rows={17} maxLength={24_000} value={fullNote} onChange={(e) => { setFullNote(e.target.value); resetPrivacy(); }} placeholder="Paste fictional or fully de-identified clinical documentation. Never enter identifying patient information." /><span className="field-help">{fullNote.length.toLocaleString()} / 24,000 characters</span></div> : <div className="section-inputs">{sectionKeys(noteType).map((key, index) => <details key={key} open={index === 0 || key === "assessmentPlan"}><summary>{sectionLabels[key]} <span className="field-help">{sections[key].trim() ? "Text added" : "Optional"}</span></summary><div className="field"><label className="sr-only" htmlFor={`section-${key}`}>{sectionLabels[key]}</label><textarea id={`section-${key}`} rows={key === "assessmentPlan" || key === "hpi" ? 6 : 4} maxLength={24_000} value={sections[key]} onChange={(e) => { setSections((previous) => ({ ...previous, [key]: e.target.value })); resetPrivacy(); }} placeholder={`Add ${sectionLabels[key].toLowerCase()} if documented.`} /></div></details>)}</div>}
         {noteType === "admission" && <div className="hpi-option"><label className="checkbox-label"><input type="checkbox" checked={improveHpi} onChange={(e) => setImproveHpi(e.target.checked)} /><span><strong>Improve HPI (optional)</strong><br />Include a separate wording suggestion and clarification questions. It will not replace your note or affect the MDM calculation.</span></label></div>}
       </section>
+
+      {!usePreparedExample && <section className="panel"><details><summary>Reporting details (optional)</summary><p className="field-help mt-3">Only confirm facts you know are true for this encounter. These details can resolve uncertainty about documented interpretations and external discussions. Leaving them unchecked means unconfirmed. Another clinician billing their own services does not mean you separately bill these activities.</p>{(Object.keys(billingContextLabels) as (keyof typeof billingContextLabels)[]).map((key) => <label key={key} className="checkbox-label mt-4"><input type="checkbox" checked={billingContext[key]} onChange={(e) => { setBillingContext((previous) => ({ ...previous, [key]: e.target.checked })); setPrivacyConfirmed(false); }} /><span>{billingContextLabels[key]}</span></label>)}<p className="field-help mt-3">A confirmation does not establish that work occurred or guarantee a code. Original documentation is preserved. Editing the note or switching workflow/input/source resets these confirmations.</p></details></section>}
 
       <section className="panel"><h2>3. Review and analyze</h2><label className="checkbox-label mt-5"><input type="checkbox" checked={privacyConfirmed} onChange={(e) => setPrivacyConfirmed(e.target.checked)} required /><span>I confirm the active documentation contains no identifying patient information and I am authorized to use it. {usePreparedExample ? "The submitted text and prepared results are saved to my account without an AI request." : "Live analysis sends the reviewed text to OpenAI; the submitted text and results are saved to my account."}</span></label>
         {documentSource === "deidentified" && <label className="checkbox-label mt-4"><input type="checkbox" checked={deidentificationConfirmed} onChange={(e) => setDeidentificationConfirmed(e.target.checked)} required /><span>This real-case note was fully de-identified before entering this app, with all potentially identifying details and context reviewed. I reviewed it and understand automated screening cannot verify this.</span></label>}

@@ -35,7 +35,7 @@ try {
   const saved = [];
   for (const [index, sample] of demoCases.entries()) {
     const inputMode = index % 2 ? "sections" : "full";
-    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), syntheticOnly: true, encounterConfirmed: true, improveHpi: sample.noteType === "admission", providerMode: "prepared_demo", sampleId: sample.id };
+    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), syntheticOnly: true, encounterConfirmed: true, improveHpi: sample.noteType === "admission", providerMode: "prepared_demo", sampleId: sample.id, billingContext: { independentInterpretationEligible: true, externalDiscussionNotSeparatelyReported: true } };
     const inactiveKey = sample.noteType === "admission" ? "intervalHistory" : "hpi";
     input.sections = { ...input.sections, [inactiveKey]: "Inactive fictional draft must not be retained." };
     const response = await fetch(url("/api/analyses"), { method: "POST", headers: aHeaders, body: JSON.stringify(input) });
@@ -52,6 +52,8 @@ try {
     if (inputMode === "full") assert.deepEqual(record.submittedInput.sections, {});
     assert.equal(record.suggestedCptCode, sample.expected.code);
     assert.equal(record.structuredAnalysis.origin, "prepared_demo");
+    assert.deepEqual(record.structuredAnalysis.billingContext, { independentInterpretationEligible: false, externalDiscussionNotSeparatelyReported: false });
+    assert.deepEqual(record.submittedInput.billingContext, record.structuredAnalysis.billingContext);
     assert.equal(record.structuredAnalysis.mdm.overall, sample.expected.overall);
     if (sample.noteType === "admission") assert.equal(record.structuredAnalysis.hpi.originalHpi, sample.sections.hpi);
     assert.equal((await fetch(url(`/api/analyses/${result.id}`), { headers: bHeaders })).status, 404);

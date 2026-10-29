@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { potentialIdentifiers } from "./privacy";
+import { billingContextSchema, emptyBillingContext } from "./billing-context";
 
 export const sectionLabels = {
   hpi: "History of Present Illness (HPI)",
@@ -45,6 +46,7 @@ export const analysisInputSchema = z.object({
   improveHpi: z.boolean(),
   providerMode: z.enum(["openai", "prepared_demo"]),
   sampleId: z.string().max(80).nullable(),
+  billingContext: billingContextSchema.default(emptyBillingContext),
 }).strict().superRefine((input, ctx) => {
   const confirmed = input.privacyConfirmed === true || (input.privacyConfirmed === undefined && input.documentSource === "synthetic" && input.syntheticOnly === true);
   if (!confirmed) ctx.addIssue({ code: "custom", message: "Confirm that the documentation contains no identifying patient information and may be submitted for this demonstration.", path: ["privacyConfirmed"] });

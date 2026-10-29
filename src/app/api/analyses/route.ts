@@ -10,6 +10,7 @@ import { extractClinicalDocumentation, getAiConfiguration, improveHpi } from "@/
 import { ProviderError, providerErrorMessage } from "@/lib/clinical/provider-client";
 import { reportSchema } from "@/lib/clinical/report";
 import { addProgressClarifications } from "@/lib/clinical/progress-guidance";
+import { emptyBillingContext } from "@/lib/clinical/billing-context";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -28,25 +29,26 @@ export async function POST(request: Request) {
     const prepared = input.providerMode === "prepared_demo" ? resolvePreparedCase(input.sampleId, note, input.noteType) : null;
     if (input.providerMode === "prepared_demo" && !prepared) return json({ error: "Prepared mode requires an unchanged built-in example. Use live AI for edited documentation." }, 400);
     const configuration = prepared ? null : getAiConfiguration();
+    const billingContext = prepared ? emptyBillingContext : input.billingContext;
     if (!(await allowAuthAttempt(user.id, prepared ? "demo" : "analysis"))) return json({ error: "Analysis limit reached. Try again in 15 minutes." }, 429);
 
     // HPI is a separate operation on the original documentation, never an input
     // to the MDM engine. Prepared fixtures are clearly labeled and never mixed
     // with model output or used as a silent fallback for provider failures.
     const [extracted, hpi] = prepared ? [prepared.extraction, input.improveHpi && prepared.hpi ? validateHpi(prepared.hpi, note) : null] : await Promise.all([
-      extractClinicalDocumentation(note, input.noteType),
+      extractClinicalDocumentation(note, input.noteType, billingContext),
       input.improveHpi ? improveHpi(input.inputMode === "sections" ? input.sections.hpi.trim() : note) : Promise.resolve(null),
     ]);
     const extraction = addProgressClarifications(groundExtraction(extracted, note), note, input.noteType);
     const mdm = evaluateMdm(extraction, note, input.noteType);
-    const report = reportSchema.parse({ schemaVersion: 1, documentSource: input.documentSource, origin: input.providerMode, model: configuration?.model ?? null,
+    const report = reportSchema.parse({ schemaVersion: 1, documentSource: input.documentSource, billingContext, origin: input.providerMode, model: configuration?.model ?? null,
       demoCaseId: prepared?.id ?? null, exampleRationale: prepared?.expected.rationale ?? null, extraction, mdm, hpi });
     const record = await getDb().billingAnalysis.create({ data: {
       userId: user.id, title: prepared?.title ?? `${noteLabels[input.noteType]} analysis`,
       syntheticNote: note, syntheticDataConfirmed: input.documentSource === "synthetic", noteType: input.noteType, inputMode: input.inputMode,
       // Enforce active-field persistence on the server as well as the form.
       // A crafted request must not retain an inactive workflow's hidden draft.
-      submittedInput: { documentSource: input.documentSource, privacyConfirmed: true, deidentificationConfirmed: input.deidentificationConfirmed, fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? Object.fromEntries(sectionKeys(input.noteType).map((key) => [key, input.sections[key]])) : {} },
+      submittedInput: { documentSource: input.documentSource, billingContext, privacyConfirmed: true, deidentificationConfirmed: input.deidentificationConfirmed, fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? Object.fromEntries(sectionKeys(input.noteType).map((key) => [key, input.sections[key]])) : {} },
       structuredAnalysis: report, problemsComplexity: mdm.problems.level ?? "Indeterminate", dataComplexity: mdm.data.level ?? "Indeterminate", riskComplexity: mdm.risk.level ?? "Indeterminate",
       mdmComplexity: mdm.overall ?? (mdm.minimumSupportedCode ? `At least ${mdm.minimum}` : "Indeterminate"), suggestedCptCode: mdm.potentialCode ?? mdm.minimumSupportedCode, rationale: mdm.explanation,
       documentationGaps: extraction.gaps, hpiRevision: hpi?.suggestedHpi || null,
