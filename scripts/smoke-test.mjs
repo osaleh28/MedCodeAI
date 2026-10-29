@@ -112,6 +112,7 @@ try {
   const newHtml = await newPage.text();
   assert.ok(newHtml.includes("Full note") && newHtml.includes("Separate sections"));
   assert.ok(newHtml.includes("Admission H&amp;P") && newHtml.includes("Choose a code card"));
+  assert.ok(newHtml.indexOf("Choose a code card") < newHtml.indexOf("How MDM complexity is determined"), "Code cards must precede the MDM learning guide.");
   for (const sample of demoCases) assert.ok(newHtml.includes(`value="${sample.id}"`));
   console.log("PASS anonymous requests, cross-origin requests, direct record IDs, full saved pages, and history isolation.");
 

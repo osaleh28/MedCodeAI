@@ -80,6 +80,7 @@ export function NewAnalysisForm() {
   return <form className="analysis-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit(usePreparedExample ? "prepared_demo" : "openai"); }}>
     <fieldset disabled={pending || importing} className="analysis-fieldset">
       <legend className="sr-only">Educational documentation analysis</legend>
+      <HospitalCodeCards key={noteType} noteType={noteType} />
       <MdmLearningGuide />
       <section className="panel"><div className="panel-heading"><h2>1. Choose your workflow</h2><span className="label">MDM only</span></div>
         <fieldset className="workflow-options"><legend className="sr-only">Note type</legend>{(["admission", "progress"] as const).map((type) => <label className={`workflow-option ${noteType === type ? "selected" : ""}`} key={type}><input type="radio" name="noteType" checked={noteType === type} onChange={() => { setNoteType(type); setEncounterConfirmed(false); resetPrivacy(); }} /><span><strong>{noteLabels[type]}</strong><small>{type === "admission" ? "Assumes initial hospital inpatient/observation care · 99221–99223" : "Assumes subsequent hospital inpatient/observation care · 99231–99233"}</small></span></label>)}</fieldset>
@@ -87,8 +88,6 @@ export function NewAnalysisForm() {
         <label className="checkbox-label mt-4"><input type="checkbox" checked={encounterConfirmed} onChange={(e) => setEncounterConfirmed(e.target.checked)} aria-describedby="encounter-scope" required /><span>I confirm this example represents the initial hospital visit or subsequent hospital visit selected above.</span></label>
         <p id="encounter-scope" className="field-help mt-3">This demo evaluates these two hospital-care categories only. Consultation, critical-care, discharge, and same-day admission/discharge coding are outside its scope.</p>
       </section>
-
-      <HospitalCodeCards key={noteType} noteType={noteType} />
 
       <section className="panel"><div className="sample-picker"><div><h2>Load a complete example note</h2><p>Selecting an example fills in the documentation below. Review the note, then choose Run prepared example to see its teaching assessment. You do not need to write a note.</p></div><div className="field"><label htmlFor="demo-case">Choose an example note</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title.replace("Worksheet practice", "Teaching example")}</option>)}</optgroup><optgroup label="MDM teaching examples">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title.replace("Worksheet practice", "Teaching example")}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
 
