@@ -12,8 +12,13 @@ export const billingContextSchema = z.object({
 export type BillingContext = z.infer<typeof billingContextSchema>;
 
 export const billingContextLabels: Record<keyof BillingContext, string> = {
-  independentInterpretationEligible: "For independent interpretations documented in this note, the test was performed by another professional and I am not separately billing its interpretation.",
-  externalDiscussionNotSeparatelyReported: "For qualifying external clinical discussions documented in this note, I am not separately billing the discussion.",
+  independentInterpretationEligible: "I personally interpreted tests performed by someone else, and I am not billing separately for those interpretations.",
+  externalDiscussionNotSeparatelyReported: "I had direct discussions about care or test findings with an outside clinician, and I am not billing separately for those discussions.",
+};
+
+export const billingContextHelp: Record<keyof BillingContext, string> = {
+  independentInterpretationEligible: "For example, you looked at the actual chest X-ray images or ECG tracing and made your own interpretation. Reading the radiologist's report alone is different.",
+  externalDiscussionNotSeparatelyReported: "For example, you spoke directly with a cardiologist from another group or specialty about treatment or test findings. The clinician can work in the same hospital. Requesting a consult alone is different.",
 };
 
 export function billingContextInstructions(context: BillingContext) {

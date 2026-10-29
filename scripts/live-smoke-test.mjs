@@ -93,7 +93,7 @@ try {
     assert.equal(page.status, 200);
     const resultHtml = await page.text();
     assert.ok(resultHtml.includes("Live AI extraction"));
-    if (Object.values(sample.billingContext ?? emptyBillingContext).some(Boolean)) assert.ok(resultHtml.includes("Reporting details confirmed by the user"));
+    if (Object.values(sample.billingContext ?? emptyBillingContext).some(Boolean)) assert.ok(resultHtml.includes("Billing answers you confirmed"));
     if (sample.expected.minimumCode) {
       assert.ok(resultHtml.includes("Minimum supported CPT code"));
       assert.ok(resultHtml.includes(sample.expected.minimumCode));
