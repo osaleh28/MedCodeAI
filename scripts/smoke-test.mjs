@@ -64,6 +64,7 @@ try {
     assert.ok(resultsHtml.includes("Coding-rule conclusion"));
     assert.ok(resultsHtml.includes("Submitted documentation"));
     assert.ok(resultsHtml.includes("Prepared educational example"));
+    assert.ok(resultsHtml.includes(`CPT ${sample.expected.code} educational fact sheet`), "The result's educational card must use the saved encounter family and code.");
     if (sample.noteType === "admission") assert.ok(resultsHtml.includes("Original HPI"));
     console.log(`PASS ${sample.id}: persisted ${sample.expected.code}, readable by owner, hidden from other account.`);
   }
@@ -110,6 +111,7 @@ try {
   assert.equal(newPage.status, 200);
   const newHtml = await newPage.text();
   assert.ok(newHtml.includes("Full note") && newHtml.includes("Separate sections"));
+  assert.ok(newHtml.includes("Admission H&amp;P") && newHtml.includes("Choose a code card"));
   for (const sample of demoCases) assert.ok(newHtml.includes(`value="${sample.id}"`));
   console.log("PASS anonymous requests, cross-origin requests, direct record IDs, full saved pages, and history isolation.");
 

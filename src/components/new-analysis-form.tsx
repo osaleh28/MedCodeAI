@@ -10,6 +10,7 @@ import { NoteFileImport } from "@/components/note-file-import";
 import { documentSourceLabels, potentialIdentifiers, type DocumentSource } from "@/lib/clinical/privacy";
 import { billingContextLabels, emptyBillingContext } from "@/lib/clinical/billing-context";
 import { ProgressNoteGuide } from "@/components/progress-note-guide";
+import { HospitalCodeCards } from "@/components/hospital-code-cards";
 
 export function NewAnalysisForm() {
   const router = useRouter();
@@ -86,6 +87,8 @@ export function NewAnalysisForm() {
         <label className="checkbox-label mt-4"><input type="checkbox" checked={encounterConfirmed} onChange={(e) => setEncounterConfirmed(e.target.checked)} aria-describedby="encounter-scope" required /><span>I confirm this example represents the initial hospital visit or subsequent hospital visit selected above.</span></label>
         <p id="encounter-scope" className="field-help mt-3">This demo evaluates these two hospital-care categories only. Consultation, critical-care, discharge, and same-day admission/discharge coding are outside its scope.</p>
       </section>
+
+      <HospitalCodeCards key={noteType} noteType={noteType} />
 
       <section className="panel"><div className="sample-picker"><div><h2>Load a complete example note</h2><p>Selecting an example fills in the documentation below. Review the note, then choose Run prepared example to see its teaching assessment. You do not need to write a note.</p></div><div className="field"><label htmlFor="demo-case">Choose an example note</label><select id="demo-case" value={sampleId ?? ""} onChange={(e) => loadSample(e.target.value)}><option value="">Choose an example…</option><optgroup label="Core note workflows">{demoCases.filter((sample) => sample.group !== "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title.replace("Worksheet practice", "Teaching example")}</option>)}</optgroup><optgroup label="MDM teaching examples">{demoCases.filter((sample) => sample.group === "worksheet").map((sample) => <option key={sample.id} value={sample.id}>{sample.title.replace("Worksheet practice", "Teaching example")}</option>)}</optgroup></select></div></div>{selectedSample?.learningFocus && <p className="sample-learning-focus mt-4"><strong>Learning focus:</strong> {selectedSample.learningFocus}</p>}</section>
 
