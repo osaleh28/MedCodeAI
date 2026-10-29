@@ -2,7 +2,7 @@ import { z } from "zod";
 import { hasGroundedEvidence, type ClinicalExtraction, type EvidenceFinding } from "./contracts";
 import type { NoteType } from "./input";
 
-export const RULE_VERSION = "hospital-mdm-2023-public-v4";
+export const RULE_VERSION = "hospital-mdm-2023-public-v5";
 export const ruleSources = [
   { title: "AMA hospital E/M guidelines, effective January 2023 (Table 1 and hospital descriptors)", url: "https://www.ama-assn.org/system/files/2023-e-m-descriptors-guidelines.pdf" },
   { title: "AMA E/M clarifications, updated January 2026", url: "https://www.ama-assn.org/practice-management/cpt/cpt-evaluation-and-management-em-revisions-faqs" },
@@ -38,9 +38,9 @@ type Scored = EvidenceFinding & { name: string };
 const numberOf = (level: MdmLevel) => levels.indexOf(level);
 const unique = (values: string[]) => [...new Set(values)];
 
-function element(score: number, unresolved: boolean, explanation: string, accepted: Scored[], excluded: string[]): Element {
+function element(score: number, unresolved: boolean, explanation: string, accepted: Scored[], excluded: string[], maximumScore = unresolved ? 3 : score): Element {
   return {
-    level: unresolved && score < 3 ? null : levels[score], minimum: levels[score], maximum: levels[unresolved ? 3 : score],
+    level: maximumScore > score ? null : levels[score], minimum: levels[score], maximum: levels[maximumScore],
     explanation, credited: accepted.map((item) => item.name), excluded,
     evidence: unique(accepted.flatMap((item) => item.evidence)),
   };
@@ -106,6 +106,7 @@ export function canonicalTestKey(key: string) {
 function assessData(extraction: ClinicalExtraction, note: string): Element {
   const accepted: Scored[] = [], excluded: string[] = [];
   let unresolved = !extraction.dataComplete;
+  let unverifiedCategory1Identity = false;
   const interpretationKeys = new Set<string>();
   const category1 = new Set<string>();
   let historian = false, interpretation = false, discussion = false;
@@ -126,7 +127,16 @@ function assessData(extraction: ClinicalExtraction, note: string): Element {
     if (["order", "review", "independent_interpretation"].includes(item.activity)) {
       const identity = canonicalTestKey(item.uniqueKey);
       if (["pulse_oximetry", "spo2", "oxygen_saturation"].includes(identity)) { excluded.push(`${item.label}: oximetry is not a qualifying unique test.`); return false; }
-      if (!supportedTestKeys.has(identity)) { unresolved = true; excluded.push(`${item.label}: unique test identity is outside this MVP's verified catalog; no definite credit.`); return false; }
+      if (!supportedTestKeys.has(identity)) {
+        // An additional order/review affects only Category 1. It cannot create
+        // independent interpretation or an external discussion. Missing overall
+        // extraction, uncertain evidence/eligibility, and uncertain interpretation
+        // retain their wider bounds through the checks above and below.
+        if (item.activity === "order" || item.activity === "review") unverifiedCategory1Identity = true;
+        else unresolved = true;
+        excluded.push(`${item.label}: unique test identity is outside this MVP's verified catalog; no definite credit.`);
+        return false;
+      }
     }
     if (["independent_interpretation", "external_discussion"].includes(item.activity)
       && (item.separatelyReported !== false || (item.activity === "independent_interpretation" && item.performedByOther !== true))) {
@@ -156,8 +166,12 @@ function assessData(extraction: ClinicalExtraction, note: string): Element {
   const total = category1.size + Number(historian);
   const moderateCategories = Number(total >= 3) + Number(interpretation) + Number(discussion);
   const score = moderateCategories >= 2 ? 3 : moderateCategories >= 1 ? 2 : category1.size >= 2 || historian ? 1 : 0;
+  // Unknown order/review identities can raise Category 1 to its threshold, but
+  // High data still requires a second qualifying category. Never add definite
+  // credit for the unverified test or suppress uncertainty in another category.
+  const maximumScore = unresolved ? 3 : unverifiedCategory1Identity ? Math.max(score, interpretation || discussion ? 3 : 2) : score;
   return element(score, unresolved,
-    `${category1.size} unique test/source credit(s); historian ${historian ? "credited once" : "not credited"}; ${moderateCategories} qualifying data category/categories. Displayed results, repeated values, and order/review of the same test are not additive.`, accepted, excluded);
+    `${category1.size} unique test/source credit(s); historian ${historian ? "credited once" : "not credited"}; ${moderateCategories} qualifying data category/categories. Displayed results, repeated values, and order/review of the same test are not additive.${unverifiedCategory1Identity ? " Additional unverified order/review identities remain excluded and affect only the tests/documents category; extra tests alone cannot establish high data complexity." : ""}`, accepted, excluded, maximumScore);
 }
 
 function assessRisk(extraction: ClinicalExtraction, note: string): Element {

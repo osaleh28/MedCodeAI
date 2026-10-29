@@ -13,6 +13,8 @@ export const reportSchema = z.object({
   exampleRationale: z.string().nullable(),
   extraction: clinicalExtractionSchema,
   mdm: mdmResultSchema,
+  // Explicit reassessment retains the original rule version and conclusions.
+  previousMdmAssessments: z.array(mdmResultSchema).optional(),
   hpi: hpiSchema.extend({ suggestedHpi: z.string(), warnings: z.array(z.string()) }).nullable(),
 });
 export type SavedReport = z.infer<typeof reportSchema>;

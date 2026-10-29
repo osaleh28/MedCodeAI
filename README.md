@@ -296,6 +296,12 @@ Migration ledger/column inspection is not an exhaustive Prisma schema-drift proo
 
 ## Vercel release
 
+### Data uncertainty correction (rule v5)
+
+An otherwise grounded, eligible order/review whose test identity is outside the verified catalog remains excluded from definite credit. Its uncertainty affects only the tests/documents category. Once that category establishes Moderate data, extra ordinary tests alone cannot make High data possible or force the data element to Indeterminate. Incomplete extraction, uncertain evidence/eligibility, independent interpretation and external discussion retain their existing conservative bounds. Regression cases use original fictional documentation.
+
+Saved assessments keep their original rule version until explicitly recalculated. To review one selected record with the current deterministic rules, run `npm test`, then `node scripts/reassess-analysis.mjs <analysis-id>`. After reviewing the before/after summary, add `--apply` to update that record. This uses its existing extraction without an OpenAI request, preserves the previous MDM assessment in `previousMdmAssessments`, and refuses to overwrite a concurrently changed record. It does not alter the source note, extraction or other saved analyses.
+
 ### AI usage limits (October 29, 2026)
 
 - Maximum documentation: **12,000 characters combined**, including active section headings. Oversized text remains editable; it is never silently truncated. File import uses the same limit.
