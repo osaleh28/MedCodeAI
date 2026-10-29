@@ -10,7 +10,7 @@ import { encode } from "next-auth/jwt";
 dotenv.config({ quiet: true });
 const root = new URL("../.npm-cache/unit-tests/src/lib/clinical/", import.meta.url);
 const { demoCases } = await import(new URL("demos.js", root).href);
-const { emptySections } = await import(new URL("input.js", root).href);
+const { emptySections, normalizeDocumentation } = await import(new URL("input.js", root).href);
 const { reportSchema } = await import(new URL("report.js", root).href);
 const { evaluateMdm } = await import(new URL("mdm.js", root).href);
 const { configuredApiKey } = await import(new URL("provider-client.js", root).href);
@@ -30,9 +30,14 @@ try {
     ? [...demoCases.filter((sample) => /^(admission|progress)-(lower|moderate|high)$/.test(sample.id)).map((sample) => sample.id), "progress-incomplete"]
     : ["admission-moderate", "progress-moderate"];
   for (const [index, sampleId] of caseIds.entries()) {
-    const sample = sampleId === "progress-incomplete"
+    let sample = sampleId === "progress-incomplete"
       ? { id: sampleId, noteType: "progress", note: "Entirely fictional hospital progress documentation. Patient stable. Continue current plan.", sections: { ...emptySections }, expected: { code: null } }
       : demoCases.find((item) => item.id === sampleId);
+    if (process.argv.includes("--history-dates")) {
+      const historicalContext = "Fictional past medical history: appendectomy on 03/15/2010, with no ongoing symptoms or management for that resolved condition today.";
+      const sections = { ...sample.sections, assessmentPlan: `${sample.sections.assessmentPlan}\n${historicalContext}`.trim() };
+      sample = { ...sample, sections, note: normalizeDocumentation({ noteType: sample.noteType, inputMode: "sections", fullNote: "", sections }) };
+    }
     const inputMode = index % 2 ? "sections" : "full";
     const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), documentSource: index % 2 ? "deidentified" : "synthetic", privacyConfirmed: true, deidentificationConfirmed: index % 2 === 1, encounterConfirmed: true, improveHpi: sample.noteType === "admission", providerMode: "openai", sampleId: null };
     const response = await fetch(new URL("/api/analyses", base), { method: "POST", headers, body: JSON.stringify(input), signal: AbortSignal.timeout(60_000) });
@@ -42,6 +47,7 @@ try {
     assert.equal(own.status, 200);
     const record = await own.json();
     assert.equal(record.syntheticNote, sample.note);
+    if (process.argv.includes("--history-dates")) assert.ok(record.syntheticNote.includes("03/15/2010"), "Historical dates must be preserved, not silently removed or changed.");
     assert.equal(record.userId, id);
     // Synthetic controls exercise both declared-source paths; no real notes are used.
     assert.equal(record.submittedInput.documentSource, input.documentSource);

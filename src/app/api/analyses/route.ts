@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     if (!parsed.success) return json({ error: parsed.error.issues[0].message }, 400);
     const input = parsed.data;
     const note = normalizeDocumentation(input);
-    if (containsObviousIdentifiers(note)) return json({ error: "Potential identifying information was detected. Remove identifiers and calendar dates before submitting. Nothing was sent to the AI provider or saved. This check does not certify de-identification." }, 400);
+    if (containsObviousIdentifiers(note)) return json({ error: "A potential patient full name, date of birth, or hospital MRN was detected. Remove these before submitting. Historical calendar dates are not automatically blocked. Nothing was sent to the AI provider or saved. This limited check does not certify de-identification." }, 400);
     const prepared = input.providerMode === "prepared_demo" ? resolvePreparedCase(input.sampleId, note, input.noteType) : null;
     if (input.providerMode === "prepared_demo" && !prepared) return json({ error: "Prepared mode requires an unchanged built-in example. Use live AI for edited documentation." }, 400);
     const configuration = prepared ? null : getAiConfiguration();

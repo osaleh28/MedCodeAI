@@ -34,7 +34,7 @@ test("prepared cases work in either mode, but changed notes cannot use fixtures"
   }
 });
 test("obvious personal identifiers are rejected by an additional best-effort guard", () => {
-  for (const value of ["MRN: 123456", "DOB: 01/01/1970", "Contact person@example.com", "SSN 123-45-6789", "Phone 212-555-0199"]) assert.equal(containsObviousIdentifiers(value), true);
+  for (const value of ["MRN: 123456", "DOB: 01/01/1970", "Patient name: Fictional Person"]) assert.equal(containsObviousIdentifiers(value), true);
 });
 test("cross-origin and missing-origin mutation requests are rejected", () => {
   assert.equal(sameOrigin(new Request("https://demo.example/api/analyses", { headers: { origin: "https://evil.example" } })), false);

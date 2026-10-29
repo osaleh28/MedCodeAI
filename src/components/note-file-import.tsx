@@ -24,7 +24,7 @@ export function NoteFileImport({ onApply, onBusy }: { onApply: (text: string) =>
     }} /></div>
     {busy && <p role="status">Reading the file locally…</p>}
     {preview !== null && <><div className="field mt-4"><label htmlFor="import-preview">Extracted text — review and remove identifying information</label><textarea id="import-preview" rows={12} maxLength={24_000} value={preview} onChange={(e) => { setPreview(e.target.value); setReviewed(false); }} /></div>
-      {identifiers.length > 0 && <p className="form-error" role="alert">Potential identifiers detected: {identifiers.join(", ")}. Remove them before continuing. This screen cannot verify de-identification.</p>}
+      {identifiers.length > 0 && <p className="form-error" role="alert">Potential identifiers detected: {identifiers.join(", ")}. Remove them before continuing. This screen checks only patient full names, dates of birth, and hospital MRNs; it cannot verify de-identification.</p>}
       <label className="checkbox-label mt-4"><input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} /><span>I reviewed the entire extracted text for accuracy and identifying information. It is fictional or already fully de-identified.</span></label>
       <div className="analysis-actions"><button type="button" className="button secondary" disabled={!reviewed || identifiers.length > 0 || busy} onClick={() => {
         try { if (onApply(checkedExtractedText(preview))) { setPreview(null); setReviewed(false); setError(""); } }
