@@ -1,12 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { configuredApiKey, requestStructured, ProviderError, providerErrorMessage } from "../src/lib/clinical/provider-client";
+import { configuredApiKey, requestStructured as requestStructuredRaw, ProviderError, providerErrorMessage, emptyCallUsage } from "../src/lib/clinical/provider-client";
+import { tokenCostMicros, UsageLimitError } from "../src/lib/clinical/limits";
 import { clinicalExtractionSchema, groundExtraction, hpiSchema, validateHpi } from "../src/lib/clinical/contracts";
 import { demoCases } from "../src/lib/clinical/demos";
 import { evaluateMdm } from "../src/lib/clinical/mdm";
 
 const schema = z.object({ value: z.string() }).strict();
+// Existing contract fixtures focus on generation; provide its token preflight.
+const requestStructured: typeof requestStructuredRaw = (args) => requestStructuredRaw({ ...args, fetcher: async (url, init) => {
+  if (String(url).endsWith("/input_tokens")) return Response.json({ input_tokens: 100 });
+  return args.fetcher!(url, init);
+} });
 const configuration = { schema, name: "test", instructions: "Test fixture.", documentation: "Fictional note.", apiKey: "fake-test-key", model: "test-model" };
 const output = (value: unknown, status = "completed") => ({ status, output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(value) }] }] });
 test("provider transport uses strict structured output, server auth, and store=false", async () => {
@@ -74,4 +80,63 @@ test("full structured extraction and separate HPI responses validate before rule
   assert.equal(validateHpi(hpi, sample.note).status, "available");
   const mdm = evaluateMdm(groundExtraction(extraction, sample.note), sample.note, sample.noteType);
   assert.equal(mdm.potentialCode, "99222");
+});
+
+test("preflight includes instructions and schema; 20,001 input tokens never starts generation", async () => {
+  const usage = emptyCallUsage();
+  let calls = 0;
+  await assert.rejects(() => requestStructuredRaw({ ...configuration, usage, fetcher: async (url, init) => {
+    calls++;
+    assert.ok(String(url).endsWith("/input_tokens"));
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.instructions, configuration.instructions);
+    assert.equal(body.text.format.schema.additionalProperties, false);
+    return Response.json({ input_tokens: 20_001 });
+  } }), UsageLimitError);
+  assert.equal(calls, 1);
+  assert.equal(usage.chargedMicros, 0);
+});
+
+test("token preflight failure fails closed without generation or a charge", async () => {
+  for (const response of [Response.json({ unexpected: true }), Response.json({}, { status: 500 })]) {
+    const usage = emptyCallUsage(); let calls = 0;
+    await assert.rejects(() => requestStructuredRaw({ ...configuration, usage, fetcher: async () => { calls++; return response; } }), ProviderError);
+    assert.equal(calls, 1); assert.equal(usage.chargedMicros, 0);
+  }
+});
+
+test("20,000 input tokens accepted; analysis and HPI get distinct output ceilings", async () => {
+  for (const [name, limit] of [["source_clinical_extraction", 6500], ["hpi_suggestion", 2000]] as const) {
+    const usage = emptyCallUsage();
+    await requestStructuredRaw({ ...configuration, name, usage, fetcher: async (url, init) => {
+      if (String(url).endsWith("/input_tokens")) return Response.json({ input_tokens: 20_000 });
+      assert.equal(JSON.parse(String(init?.body)).max_output_tokens, limit);
+      assert.equal(usage.chargedMicros, tokenCostMicros(20_000, limit));
+      return Response.json({ ...output({ value: "verified" }), usage: { input_tokens: 20_000, output_tokens: 30 } });
+    } });
+    assert.equal(usage.chargedMicros, tokenCostMicros(20_000, 30));
+    assert.equal(usage.inputTokens, 20_000); assert.equal(usage.outputTokens, 30);
+  }
+});
+
+test("invalid or incomplete paid output is charged before validation", async () => {
+  for (const status of ["completed", "incomplete"]) {
+    const usage = emptyCallUsage();
+    await assert.rejects(() => requestStructured({ ...configuration, usage, fetcher: async () => Response.json({ ...output({ value: 3 }, status), usage: { input_tokens: 100, output_tokens: 80 } }) }), ProviderError);
+    assert.equal(usage.chargedMicros, tokenCostMicros(100, 80));
+  }
+});
+
+test("lost response and missing usage retain the maximum possible dispatched cost", async () => {
+  for (const mode of ["lost", "missing_usage", "malformed_usage", "refused"]) {
+    const usage = emptyCallUsage();
+    try {
+      await requestStructured({ ...configuration, usage, fetcher: async () => {
+        if (mode === "lost") throw new Error("connection lost");
+        if (mode === "refused") return Response.json({ status: "completed", output: [{ type: "message", content: [{ type: "refusal" }] }] });
+        return Response.json({ ...output({ value: "verified" }), ...(mode === "malformed_usage" ? { usage: { input_tokens: -1, output_tokens: 0 } } : {}) });
+      } });
+    } catch (error) { assert.ok(error instanceof ProviderError); }
+    assert.equal(usage.chargedMicros, tokenCostMicros(100, 6500));
+  }
 });

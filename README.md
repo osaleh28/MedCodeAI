@@ -10,7 +10,7 @@ MedCode AI is a full-stack portfolio application for learning how hospitalist do
 
 [Existing public deployment](https://med-code-ai-eight.vercel.app) ? [Phase 3 verification](#phase-3-verification--october-28-2026) ? [Local setup](#local-setup) ? [Vercel release](#vercel-release)
 
-The existing deployment does not automatically include these uncommitted import/source-selection changes. Deployment requires owner approval.
+Production releases are pushed to `main` and deployed through the existing Vercel Git integration after owner approval.
 
 ## Problem statement
 
@@ -151,7 +151,7 @@ The visible button and supporting text identify the analysis method before submi
 
 ### Note imports and source declarations
 
-Word .docx and UTF-8 .txt files are read locally in the browser. Their binary content and filenames are never sent to the server. Only the reviewed, active text is sent for analysis and stored with the result. DOCX extraction uses Mammoth raw-text extraction; it never renders uploaded HTML. Limits: 5 MB per file, 24,000 extracted characters, bounded declared DOCX archive size. PDF/image imports and OCR are not supported; export a DOCX/TXT copy or paste reviewed text instead. Corrupt and legacy .doc files are unsupported. Review extraction order, missing tables and all clinical meaning; file conversion is not clinical validation.
+Word .docx and UTF-8 .txt files are read locally in the browser. Their binary content and filenames are never sent to the server. Only the reviewed, active text is sent for analysis and stored with the result. DOCX extraction uses Mammoth raw-text extraction; it never renders uploaded HTML. Limits: 5 MB per file, 12,000 extracted characters, bounded declared DOCX archive size. PDF/image imports and OCR are not supported; export a DOCX/TXT copy or paste reviewed text instead. Corrupt and legacy .doc files are unsupported. Review extraction order, missing tables and all clinical meaning; file conversion is not clinical validation.
 
 The form has fictional and de-identified source choices. The latter is a user declaration, not a privacy certification. Client/server automatic blocking focuses on labeled patient full names, dates of birth, and hospital MRNs. Other calendar dates, including clinical-history dates, are not automatically blocked or modified. This limited policy does not establish that a note is de-identified: dates, contact details, locations, partial names and other context may still identify someone. Unlabeled or unusual formats may evade screening. De-identify outside this application first; do not paste identifiable notes for the app to clean. Editing text or switching input/source modes resets privacy acknowledgements. Existing separate-section drafts are preserved when importing into the full-note draft.
 
@@ -296,7 +296,20 @@ Migration ledger/column inspection is not an exhaustive Prisma schema-drift proo
 
 ## Vercel release
 
-**Owner approval is required before deployment or production infrastructure changes.** Pushing `main` may trigger the existing Vercel Git integration, so treat that push as a release action. The previous Phase 3 release was pushed to main and deployed. New import/source-selection changes remain local until committed and pushed.
+### AI usage limits (October 29, 2026)
+
+- Maximum documentation: **12,000 characters combined**, including active section headings. Oversized text remains editable; it is never silently truncated. File import uses the same limit.
+- Every live call first uses OpenAI's `/v1/responses/input_tokens` endpoint to count the complete input, including instructions and structured-output schema. Calls above **20,000 input tokens** are rejected before generation. Counting failure blocks generation.
+- Analysis output is capped at **6,500 tokens**; optional HPI output at **2,000 tokens**. Incomplete responses are rejected rather than saved as partial assessments.
+- Each signed-in user has **10 admitted live analysis attempts per UTC day**, including failed attempts, and **one live analysis running at a time**. The existing short-term throttle also remains. A 120-second database lease recovers concurrency after a terminated process.
+- App-wide OpenAI generation budget: **$1 per UTC day / $20 per UTC calendar month**, whichever is reached first. Existing prepared-example throttling remains separate and examples do not spend the AI budget. These limits cover this app's guarded calls, not other API-key users, Vercel, Neon, taxes, or historical spending before this feature is installed.
+- PostgreSQL transactions serialize reservations across Vercel instances before either paid call is dispatched. Reserve up to $0.0184 for analysis alone / $0.0296 with HPI; reconcile reported token usage before validating output, including invalid, incomplete, or refused responses. Unknown charges keep the dispatched-call maximum; process termination or settlement failure keeps the full reservation. Cached input is conservatively priced as uncached. Reservations are charged to their original UTC admission windows, even when completion crosses midnight. No automatic paid retries.
+- Usage tables store hashed account keys, token totals, costs and timestamps, never clinical text. Failed database admission blocks live AI. An unpriced `OPENAI_MODEL` blocks live calls; only `gpt-4.1-mini` and `gpt-4.1-mini-2025-04-14` currently have reviewed rates ($0.40/M input, $1.60/M output, verified October 29, 2026). Review rates before changing models. See [OpenAI pricing](https://developers.openai.com/api/docs/models/gpt-4.1-mini) and [token counting](https://developers.openai.com/api/docs/guides/token-counting).
+- Apply the additive **`20261029000000_ai_usage_limits` migration** to the intended database before deploying this code. No new environment variables are needed. Do not recreate/reset the database. OpenAI spend alerts are supplementary; they do not enforce this app's cap.
+
+Validation: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build:managed` (managed Windows), and `npm run test:budget` (real PostgreSQL transaction/concurrency checks in an isolated temporary schema, removed after testing; no paid AI calls).
+
+**Owner approval is required before deployment or production infrastructure changes.** Pushing `main` may trigger the existing Vercel Git integration, so treat that push as a release action. The October 29, 2026 AI usage-limit release was approved by the owner. Apply its database migration before pushing the release.
 
 After approval:
 
@@ -304,7 +317,7 @@ After approval:
 2. In Vercel, verify the intended project, Git branch, Node.js 24 runtime and standard `npm run build` command. Keep the managed-Windows flag unset.
 3. Set `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, and, for live AI, `OPENAI_API_KEY`/`OPENAI_MODEL` in the intended Production/Preview environments. Use separate development/preview database branches where practical. Never use `NEXT_PUBLIC_` names for these values.
 4. Do not copy a localhost `AUTH_URL` to Vercel. Auth.js normally infers the Vercel host; if explicitly configured, use the correct stable HTTPS domain and handle previews separately. Auth.js host-trust behavior is described in its [deployment documentation](https://authjs.dev/getting-started/deployment). Do not disable secure cookies.
-5. From an authorized ordinary terminal, run `npm.cmd exec prisma migrate status` against the intended target. Phase 3 adds no migration; apply pending committed migrations with `db:deploy` only after confirming the target and approval. Never use `migrate dev` in production.
+5. From an authorized ordinary terminal, run `npm.cmd exec prisma migrate status` against the intended target. The AI usage limits add migration `20261029000000_ai_usage_limits`; apply pending committed migrations with `db:deploy` only after confirming the target and approval. Never use `migrate dev` in production.
 6. Trigger the approved deployment. Environment changes require redeployment. Check that Vercel accepts the route's 60-second maximum duration under the project's [function settings](https://vercel.com/docs/functions/configuring-functions/duration).
 7. Run the manual checklist below on the new deployment. Check sanitized runtime logs when diagnosing errors; do not paste notes, cookies or secrets into issues.
 

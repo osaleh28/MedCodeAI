@@ -22,7 +22,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "test:imports": "node scripts/import-smoke-test.mjs"
+    "test:imports": "node scripts/import-smoke-test.mjs",
+    "test:budget": "node scripts/budget-smoke-test.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",

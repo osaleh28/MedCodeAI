@@ -43,7 +43,7 @@ test("only bounded supported file formats and nonempty readable text are accepte
   for (const [name, size] of [["note.doc", 10], ["note.docm", 10], ["note.txt.exe", 10], ["note.pdf", 0], ["note.txt", MAX_FILE_BYTES + 1]] as const) assert.throws(() => noteFileFormat(name, size));
   for (const extension of ["pdf", "PDF"]) assert.throws(() => noteFileFormat(`note.${extension}`, 10), /PDF imports are not supported/);
   assert.equal(checkedExtractedText("  HPI\r\nFictional note.  "), "HPI\nFictional note.");
-  for (const text of ["", " \n", "binary\0content", "a".repeat(24_001)]) assert.throws(() => checkedExtractedText(text));
+  for (const text of ["", " \n", "binary\0content", "a".repeat(12_001)]) assert.throws(() => checkedExtractedText(text));
 });
 test("DOCX screening rejects corrupt archives and inflated ZIP sizes before extraction", async () => {
   // JSZip is Mammoth's installed ZIP reader; construct fictional fixture bytes only.

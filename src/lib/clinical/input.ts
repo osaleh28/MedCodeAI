@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { potentialIdentifiers } from "./privacy";
 import { billingContextSchema, emptyBillingContext } from "./billing-context";
+import { MAX_NOTE_CHARACTERS } from "./limits";
 
 export const sectionLabels = {
   hpi: "History of Present Illness (HPI)",
@@ -23,7 +24,7 @@ export const sectionKeys = (type: NoteType): SectionKey[] => [
   "examination", "laboratory", "cardiac", "imaging", "otherStudies", "dataActivities", "assessmentPlan",
 ];
 
-const text = z.string().max(24_000, "Keep each documentation field within 24,000 characters.");
+const text = z.string().max(MAX_NOTE_CHARACTERS, "Keep each documentation field within 12,000 characters.");
 const sectionsSchema = z.object({
   hpi: text, medicalHistory: text, intervalHistory: text, examination: text,
   laboratory: text, cardiac: text, imaging: text, otherStudies: text, dataActivities: text, assessmentPlan: text,
@@ -54,7 +55,7 @@ export const analysisInputSchema = z.object({
   if (input.providerMode === "prepared_demo" && input.documentSource !== "synthetic") ctx.addIssue({ code: "custom", message: "Prepared examples are fictional teaching notes. Use live AI for de-identified real-case notes.", path: ["documentSource"] });
   const note = normalizeDocumentation(input);
   if (!note.trim()) ctx.addIssue({ code: "custom", message: "Enter documentation in at least one active field.", path: ["fullNote"] });
-  if (note.length > 24_000) ctx.addIssue({ code: "custom", message: "Keep the combined documentation within 24,000 characters.", path: ["fullNote"] });
+  if (note.length > MAX_NOTE_CHARACTERS) ctx.addIssue({ code: "custom", message: "Keep the combined documentation within 12,000 characters, including section headings.", path: ["fullNote"] });
   if (input.noteType === "progress" && input.improveHpi) ctx.addIssue({ code: "custom", message: "HPI improvement is available for Admission H&P only.", path: ["improveHpi"] });
 });
 

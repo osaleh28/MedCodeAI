@@ -7,7 +7,10 @@ import { InputError, readLimitedJson, sameOrigin } from "@/lib/clinical/api-inpu
 import { resolvePreparedCase } from "@/lib/clinical/demos";
 import { evaluateMdm } from "@/lib/clinical/mdm";
 import { extractClinicalDocumentation, getAiConfiguration, improveHpi } from "@/lib/clinical/openai";
-import { ProviderError, providerErrorMessage } from "@/lib/clinical/provider-client";
+import { ProviderError, providerErrorMessage, emptyCallUsage } from "@/lib/clinical/provider-client";
+import { reserveAiUsage, settleAiUsage } from "@/lib/ai-usage";
+import { UsageLimitError } from "@/lib/clinical/limits";
+import type { Reservation } from "@/lib/clinical/usage-budget";
 import { reportSchema } from "@/lib/clinical/report";
 import { addProgressClarifications } from "@/lib/clinical/progress-guidance";
 import { emptyBillingContext } from "@/lib/clinical/billing-context";
@@ -17,6 +20,8 @@ export const maxDuration = 60;
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function POST(request: Request) {
+  let reservation: Reservation | undefined;
+  const extractionUsage = emptyCallUsage(), hpiUsage = emptyCallUsage();
   try {
     const user = await currentUser();
     if (!user) return json({ error: "Sign in to analyze documentation." }, 401);
@@ -31,14 +36,22 @@ export async function POST(request: Request) {
     const configuration = prepared ? null : getAiConfiguration();
     const billingContext = prepared ? emptyBillingContext : input.billingContext;
     if (!(await allowAuthAttempt(user.id, prepared ? "demo" : "analysis"))) return json({ error: "Analysis limit reached. Try again in 15 minutes." }, 429);
+    if (!prepared) reservation = await reserveAiUsage(user.id, input.improveHpi);
 
     // HPI is a separate operation on the original documentation, never an input
     // to the MDM engine. Prepared fixtures are clearly labeled and never mixed
     // with model output or used as a silent fallback for provider failures.
-    const [extracted, hpi] = prepared ? [prepared.extraction, input.improveHpi && prepared.hpi ? validateHpi(prepared.hpi, note) : null] : await Promise.all([
-      extractClinicalDocumentation(note, input.noteType, billingContext),
-      input.improveHpi ? improveHpi(input.inputMode === "sections" ? input.sections.hpi.trim() : note) : Promise.resolve(null),
-    ]);
+    const [extracted, hpi] = prepared ? [prepared.extraction, input.improveHpi && prepared.hpi ? validateHpi(prepared.hpi, note) : null] : await (async () => {
+      // Wait for both calls even if one fails, so settlement cannot refund the
+      // other call while it is still spending against the reservation.
+      const [extraction, hpi] = await Promise.allSettled([
+        extractClinicalDocumentation(note, input.noteType, billingContext, extractionUsage),
+        input.improveHpi ? improveHpi(input.inputMode === "sections" ? input.sections.hpi.trim() : note, hpiUsage) : Promise.resolve(null),
+      ]);
+      if (extraction.status === "rejected") throw extraction.reason;
+      if (hpi.status === "rejected") throw hpi.reason;
+      return [extraction.value, hpi.value] as const;
+    })();
     const extraction = addProgressClarifications(groundExtraction(extracted, note), note, input.noteType);
     const mdm = evaluateMdm(extraction, note, input.noteType);
     const report = reportSchema.parse({ schemaVersion: 1, documentSource: input.documentSource, billingContext, origin: input.providerMode, model: configuration?.model ?? null,
@@ -55,6 +68,7 @@ export async function POST(request: Request) {
     }, select: { id: true } });
     return json(record, 201);
   } catch (error) {
+    if (error instanceof UsageLimitError) return Response.json({ error: error.message }, { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(error.retryAfter) } });
     if (error instanceof InputError) return json({ error: error.message }, 400);
     if (error instanceof ProviderError) {
       console.error("[analysis] AI request failed", { category: error.code, status: error.status, providerCode: error.providerCode });
@@ -63,5 +77,15 @@ export async function POST(request: Request) {
     // No raw exceptions, SQL parameters, note text, credentials, or provider payloads.
     console.error("[analysis] Request failed", { category: error instanceof Error ? error.name : "UnknownError" });
     return json({ error: "The analysis could not be completed and saved. Please try again later." }, 500);
+  } finally {
+    if (reservation) {
+      try {
+        await settleAiUsage(reservation, extractionUsage.chargedMicros + hpiUsage.chargedMicros, extractionUsage.inputTokens + hpiUsage.inputTokens, extractionUsage.outputTokens + hpiUsage.outputTokens);
+      } catch {
+        // Database failure leaves the FULL reservation counted. Do not refund
+        // locally or log provider payloads. The concurrency lease expires.
+        console.error("[analysis] Usage settlement unavailable; reservation retained");
+      }
+    }
   }
 }

@@ -1,7 +1,8 @@
 import "server-only";
 import { groundExtraction, hpiSchema, validateHpi } from "./contracts";
 import { indexSource, sourceExtractionSchema, resolveSourceExtraction } from "./source-extraction";
-import { configuredApiKey, requestStructured } from "./provider-client";
+import { configuredApiKey, requestStructured, ProviderError, type CallUsage } from "./provider-client";
+import { BUDGET_MODELS } from "./limits";
 import type { NoteType } from "./input";
 import { billingContextInstructions, emptyBillingContext, verifyReportingContext, type BillingContext } from "./billing-context";
 
@@ -30,18 +31,20 @@ Suggest neutral follow-up clarificationQuestions when existing HPI is incomplete
 
 export function getAiConfiguration() {
   const apiKey = configuredApiKey(process.env.OPENAI_API_KEY);
-  return { apiKey, model: process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini-2025-04-14" };
+  const model = process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini-2025-04-14";
+  if (!BUDGET_MODELS.some((allowed) => allowed === model)) throw new ProviderError("configuration", undefined, "unpriced_model");
+  return { apiKey, model };
 }
 
-export async function extractClinicalDocumentation(note: string, noteType: NoteType, billingContext: BillingContext = emptyBillingContext) {
+export async function extractClinicalDocumentation(note: string, noteType: NoteType, billingContext: BillingContext = emptyBillingContext, usage?: CallUsage) {
   const source = indexSource(note);
   const result = await requestStructured({ ...getAiConfiguration(), schema: sourceExtractionSchema(source), name: "source_clinical_extraction",
-    instructions: `${extractionInstructions}\nSelected encounter assumption: ${noteType === "admission" ? "initial" : "subsequent"} hospital inpatient/observation care.\n${billingContextInstructions(billingContext)}`, documentation: { sourceSpans: source } });
+    instructions: `${extractionInstructions}\nSelected encounter assumption: ${noteType === "admission" ? "initial" : "subsequent"} hospital inpatient/observation care.\n${billingContextInstructions(billingContext)}`, documentation: { sourceSpans: source }, usage });
   return verifyReportingContext(groundExtraction(resolveSourceExtraction(result, source, note, noteType), note), billingContext);
 }
 
-export async function improveHpi(note: string) {
+export async function improveHpi(note: string, usage?: CallUsage) {
   if (!note.trim()) return validateHpi({ status: "not_identified", originalHpi: "", sentences: [], clarificationQuestions: ["Is there an original HPI for this encounter to review?"] }, note);
-  const result = await requestStructured({ ...getAiConfiguration(), schema: hpiSchema, name: "hpi_suggestion", instructions: hpiInstructions, documentation: note });
+  const result = await requestStructured({ ...getAiConfiguration(), schema: hpiSchema, name: "hpi_suggestion", instructions: hpiInstructions, documentation: note, usage });
   return validateHpi(result, note);
 }

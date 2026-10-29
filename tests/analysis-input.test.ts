@@ -16,7 +16,17 @@ test("any single active section is enough; all other sections remain optional", 
   }
 });
 test("consent, encounter assumption, note length, and workflow are validated", () => {
-  for (const changed of [{ syntheticOnly: false }, { encounterConfirmed: false }, { noteType: "other" }, { fullNote: "a".repeat(24_001) }, { noteType: "progress", improveHpi: true }]) assert.equal(analysisInputSchema.safeParse({ ...base, ...changed }).success, false);
+  for (const changed of [{ syntheticOnly: false }, { encounterConfirmed: false }, { noteType: "other" }, { fullNote: "a".repeat(12_001) }, { noteType: "progress", improveHpi: true }]) assert.equal(analysisInputSchema.safeParse({ ...base, ...changed }).success, false);
+});
+
+test("12,000-character boundary applies to combined active sections including headings", () => {
+  assert.equal(analysisInputSchema.safeParse({ ...base, fullNote: "x".repeat(12_000) }).success, true);
+  assert.equal(analysisInputSchema.safeParse({ ...base, fullNote: "x".repeat(12_001) }).success, false);
+  const sections = { ...emptySections, hpi: "x".repeat(6000), assessmentPlan: "y".repeat(6000) };
+  const result = analysisInputSchema.safeParse({ ...base, fullNote: "", inputMode: "sections", sections });
+  assert.equal(result.success, false);
+  if (!result.success) assert.match(result.error.issues[0].message, /combined documentation/);
+  for (const sample of demoCases) assert.ok(sample.note.length <= 12_000);
 });
 test("forged ownership fields are rejected rather than trusted", () => {
   assert.equal(analysisInputSchema.safeParse({ ...base, userId: "someone-else" }).success, false);

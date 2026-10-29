@@ -1,5 +1,6 @@
+import { MAX_NOTE_CHARACTERS } from "./limits";
+export { MAX_NOTE_CHARACTERS } from "./limits";
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
-export const MAX_NOTE_CHARACTERS = 24_000;
 export type NoteFileFormat = "docx" | "txt";
 
 export function noteFileFormat(name: string, size: number): NoteFileFormat {
@@ -13,7 +14,7 @@ export function noteFileFormat(name: string, size: number): NoteFileFormat {
 export function checkedExtractedText(value: string): string {
   const text = value.replace(/\r\n?/g, "\n").trim();
   if (!text || text.includes("\0")) throw new Error("No readable text was found. Use a DOCX or UTF-8 TXT file containing text, or paste the note text.");
-  if (text.length > MAX_NOTE_CHARACTERS) throw new Error("The extracted note exceeds 24,000 characters. Use a shorter document.");
+  if (text.length > MAX_NOTE_CHARACTERS) throw new Error("The extracted note exceeds 12,000 characters. Use a shorter document.");
   return text;
 }
 

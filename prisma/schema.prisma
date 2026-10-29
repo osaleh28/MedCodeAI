@@ -47,3 +47,33 @@ model AuthThrottle {
   attempts    Int      @default(1)
   windowStart DateTime @default(now())
 }
+
+// Budget amounts include outstanding reservations, in USD microdollars.
+model AiBudgetWindow {
+  key          String @id
+  amountMicros Int
+}
+
+model AiUserQuota {
+  key         String    @id
+  day         String
+  attempts    Int
+  activeUntil DateTime?
+  activeId    String?
+}
+
+// No documentation, credentials, or raw user identifiers in usage accounting.
+model AiUsageReservation {
+  id             String    @id
+  userKey        String
+  dayKey         String
+  monthKey       String
+  reservedMicros Int
+  chargedMicros  Int?
+  inputTokens    Int?
+  outputTokens   Int?
+  createdAt      DateTime   @default(now())
+  finishedAt     DateTime?
+
+  @@index([dayKey])
+}
