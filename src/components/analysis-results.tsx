@@ -62,6 +62,6 @@ export function AnalysisResults({ report, note, noteType, inputMode }: { report:
     {noteType === "progress" && <div className="result-section"><ProgressNoteGuide /></div>}
     <div className="result-section"><MdmLearningGuide /></div>
     <details className="panel result-section" id="source-documentation"><summary>Submitted documentation · original source</summary><pre className="note-text">{note}</pre></details>
-    <details className="panel result-section"><summary>Coding framework, assumptions, and limitations</summary><p className="mt-4">Saved rule version: {mdm.ruleVersion}. Assessment date: {new Date(mdm.assessedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}.</p><ul className="result-list">{mdm.limitations.map((item, index) => <li key={index}>{item}</li>)}</ul><ul className="result-list">{ruleSources.map((source) => <li key={source.url}><a className="text-link" href={source.url} target="_blank" rel="noreferrer">{source.title}</a></li>)}</ul></details>
+    <details className="panel result-section"><summary>How this code was determined</summary><p className="mt-4">Saved rule version: {mdm.ruleVersion}. Assessment date: {new Date(mdm.assessedAt).toLocaleDateString("en-US", { timeZone: "UTC" })}.</p><ul className="result-list">{mdm.limitations.map((item, index) => <li key={index}>{item}</li>)}</ul><ul className="result-list">{ruleSources.map((source) => <li key={source.url}><a className="text-link" href={source.url} target="_blank" rel="noreferrer">{source.title}</a></li>)}</ul></details>
   </div>;
 }
