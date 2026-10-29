@@ -5,19 +5,24 @@ import { getHospitalCodeCards, noteDocumentationGuidance } from "@/lib/clinical/
 import type { NoteType } from "@/lib/clinical/input";
 
 export function HospitalCodeCards({ noteType, suggestedCode }: { noteType: NoteType; suggestedCode?: string | null }) {
-  const cards = getHospitalCodeCards(noteType);
+  const [referenceNoteType, setReferenceNoteType] = useState<NoteType>(noteType);
+  const cards = getHospitalCodeCards(referenceNoteType);
   const initialIndex = cards.findIndex((card) => card.code === suggestedCode);
   const [selectedIndex, setSelectedIndex] = useState(initialIndex >= 0 ? initialIndex : 1);
   const id = useId();
   const selected = cards[selectedIndex];
-  const initial = noteType === "admission";
+  const initial = referenceNoteType === "admission";
   const example = selected.level === 3
     ? initial ? "Acute decompensated heart failure with active respiratory compromise threatens organ function. The clinician evaluates that threat and decides hospitalization is necessary for treatment. High problems plus the supported hospitalization decision can establish high MDM."
       : "An acute illness with worsening respiratory compromise threatens organ function. After reassessment, the clinician decides to escalate hospital care to intensive care. High problems plus the supported escalation decision can establish high MDM."
     : selected.example;
   return <section className="panel hospital-code-guide" aria-labelledby={`${id}-title`}>
     <div className="code-guide-heading"><div><span className="eyebrow">MedCode AI · educational reference</span><h2 id={`${id}-title`}>{initial ? "Admission H&P" : "Progress note"} code cards</h2></div><span className="code-guide-family">{initial ? "Initial" : "Subsequent"} inpatient / observation care</span></div>
-    <p className="field-help">Choose a level to review its requirements. These cards explain how documented work can support a code; selecting a card does not change your analysis.</p>
+    <div className="code-family-picker" role="group" aria-label="Browse encounter code families">
+      <button type="button" aria-pressed={initial} aria-controls={`${id}-sheet`} onClick={() => setReferenceNoteType("admission")}><strong>Admission H&amp;P</strong><span>Initial care · 99221–99223</span></button>
+      <button type="button" aria-pressed={!initial} aria-controls={`${id}-sheet`} onClick={() => setReferenceNoteType("progress")}><strong>Progress Note / Subsequent Care</strong><span>Subsequent care · 99231–99233</span></button>
+    </div>
+    <p className="field-help">Browse either encounter family, then choose a level. These are educational references; browsing cards does not change your note, analysis workflow or saved result. Select the actual encounter under Choose your workflow.</p>
     <div className="code-card-picker" role="group" aria-label="Choose a code card">{cards.map((card, index) => <button type="button" key={card.code} aria-pressed={selectedIndex === index} aria-controls={`${id}-sheet`} onClick={() => setSelectedIndex(index)}><span>Level {card.level}</span><strong>{card.code}</strong><small>{card.label} MDM</small></button>)}</div>
     <article id={`${id}-sheet`} className="code-fact-sheet" aria-label={`CPT ${selected.code} educational fact sheet`}>
       <header className="code-sheet-header"><div><span className="label">Level {selected.level} · {initial ? "Admission H&P" : "Hospital progress note"}</span><h3>CPT {selected.code}</h3></div><span className="code-sheet-mdm">{selected.label} MDM</span></header>
@@ -40,7 +45,7 @@ export function HospitalCodeCards({ noteType, suggestedCode }: { noteType: NoteT
           <dl className="code-criteria">{[["Problems addressed", selected.problems], ["Data reviewed and analyzed", selected.data], ["Risk of management", selected.risk]].map(([title, text]) => <div key={title}><dt>{title}</dt><dd>{text}</dd></div>)}</dl>
           <section className="code-example" aria-label="Fictional MDM illustration"><h4>Fictional two-of-three illustration</h4><p>{example}</p><p className="code-example-breakdown">{selected.breakdown} · {selected.code}</p><p className="field-help">Illustration only, assuming an eligible {initial ? "initial" : "subsequent"} hospital encounter. Review the complete note and exclusions.</p></section>
           <h4>What to make clear in the {initial ? "admission" : "daily progress"} note</h4>
-          <ul className="code-documentation-list">{noteDocumentationGuidance[noteType].map((item) => <li key={item.title}><strong>{item.title}.</strong> {item.text}</li>)}<li><strong>Diagnostic work actually performed.</strong> Identify orders, reviews, relevant external sources, your own interpretations and actual external discussions. Record the decision-making contribution and relevant findings without treating copied results as proof of review.</li></ul>
+          <ul className="code-documentation-list">{noteDocumentationGuidance[referenceNoteType].map((item) => <li key={item.title}><strong>{item.title}.</strong> {item.text}</li>)}<li><strong>Diagnostic work actually performed.</strong> Identify orders, reviews, relevant external sources, your own interpretations and actual external discussions. Record the decision-making contribution and relevant findings without treating copied results as proof of review.</li></ul>
         </div>
         <aside className="code-sheet-sidebar" aria-label="Important coding qualifications">
           <div><h4>Two of three, not all three</h4><p>Problems, qualifying data and management risk are separate. One high element alone does not establish high MDM. A more detailed note does not by itself support a higher code.</p></div>
