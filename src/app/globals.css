@@ -117,6 +117,19 @@ h2 { font-size: clamp(27px, 3vw, 36px); line-height: 1.25; letter-spacing: -1.2p
 .dashboard-heading p { color: var(--muted); font-size: 14px; margin: 0; }
 .phase-badge { font-size: 12px; color: var(--teal); background: #e2f1ef; padding: 7px 13px; border: 1px solid #c4dfd9; border-radius: 30px; white-space: nowrap; }
 .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin: 28px 0; }
+.overview-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; margin: 28px 0; }
+.overview-start { background: #f0f7fb; border-color: #c9dfe9; }
+.overview-start h2 { margin: 10px 0 18px; font-size: 25px; }
+.overview-start > p { margin: 18px 0; }
+.overview-note-types { list-style: none; display: grid; gap: 12px; padding: 0; margin: 22px 0; }
+.overview-note-types li { border-left: 3px solid var(--teal); padding-left: 14px; }
+.overview-note-types strong, .overview-note-types span { display: block; font-size: 14px; }
+.overview-note-types span { font-size: 12px; color: var(--muted); }
+.overview-recent .panel-heading { flex-wrap: wrap; gap: 12px; }
+.overview-recent .analysis-list li { padding: 14px 0; }
+.overview-recent .analysis-list a { font-size: 13px; }
+.overview-recent .analysis-list small { font-size: 11px; }
+@media (max-width: 850px) { .overview-grid { grid-template-columns: 1fr; } }
 .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 27px; min-width: 0; }
 .panel h2 { font-size: 20px; letter-spacing: -.5px; margin: 0; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; padding-bottom: 22px; border-bottom: 1px solid var(--line); }

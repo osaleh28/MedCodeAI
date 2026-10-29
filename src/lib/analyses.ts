@@ -8,8 +8,8 @@ export async function listMyAnalyses() {
   return getDb().billingAnalysis.findMany({
     where: { userId: user.id },
     select: { id: true, title: true, createdAt: true, mdmComplexity: true, suggestedCptCode: true, noteType: true, inputMode: true },
-    orderBy: { createdAt: "desc" },
-    take: 50,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 3,
   });
 }
 

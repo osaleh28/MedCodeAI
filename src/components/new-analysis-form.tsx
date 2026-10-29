@@ -73,7 +73,7 @@ export function NewAnalysisForm() {
       if (response.status === 401) { router.push("/login"); return; }
       if (!response.ok) { setError(result.error ?? "Unable to analyze documentation. Please try again."); return; }
       router.push(`/dashboard/analyses/${result.id}`);
-    } catch { setError("The request could not finish. Check your connection, then check History before retrying in case the analysis was saved."); }
+    } catch { setError("The request could not finish. Check your connection, then check Saved analyses before retrying in case the analysis was saved."); }
     finally { setPending(false); }
   }
 
@@ -115,7 +115,7 @@ export function NewAnalysisForm() {
         {documentSource === "deidentified" && <label className="checkbox-label mt-4"><input type="checkbox" checked={deidentificationConfirmed} onChange={(e) => setDeidentificationConfirmed(e.target.checked)} required /><span>This real-case note was fully de-identified before entering this app, with all potentially identifying details and context reviewed. I reviewed it and understand automated screening cannot verify this.</span></label>}
         <div className="analysis-actions"><button className="button primary" type="submit" disabled={pending} aria-describedby="analysis-mode-help">{pending ? <><LoaderCircle size={18} className="spin" /> {usePreparedExample ? "Loading and saving..." : "Analyzing and saving..."}</> : usePreparedExample ? <><FlaskConical size={17} /> Run prepared example</> : <>Run live AI analysis <ArrowRight size={17} /></>}</button></div>
         <p id="analysis-mode-help" className="field-help mt-3">{usePreparedExample
-          ? "This complete fictional note uses a built-in teaching assessment. No AI request is made. Your result is saved to History."
+          ? "This complete fictional note uses a built-in teaching assessment. No AI request is made. Find your saved result under Saved analyses."
           : selectedSample
             ? "This note differs from the selected fictional example or its source setting has changed. Live AI analyzes the active documentation, then saves the result."
             : "Notes you paste, import, or write use live AI analysis. Use fictional or fully de-identified documentation only."} {!usePreparedExample && "Live analysis sends the reviewed text to OpenAI and may take up to a minute."}</p>

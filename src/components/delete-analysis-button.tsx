@@ -11,7 +11,7 @@ export function DeleteAnalysisButton({ id, title }: { id: string; title: string 
   const [error, setError] = useState("");
 
   async function remove() {
-    if (pending || deleted || !window.confirm(`Delete "${title}"? This permanently removes the saved note and results from Recent analyses and History. This cannot be undone.`)) return;
+    if (pending || deleted || !window.confirm(`Delete "${title}"? This permanently removes the saved note and results from Overview and Saved analyses. This cannot be undone.`)) return;
     setPending(true); setError("");
     try {
       const response = await fetch(`/api/analyses/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -23,7 +23,7 @@ export function DeleteAnalysisButton({ id, title }: { id: string; title: string 
       }
       setDeleted(true);
       router.refresh();
-    } catch { setError("The request could not finish. Refresh your dashboard to check whether the analysis was deleted before retrying."); }
+    } catch { setError("The request could not finish. Refresh Overview to check whether the analysis was deleted before retrying."); }
     finally { setPending(false); }
   }
 

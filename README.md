@@ -19,7 +19,7 @@ Clinical documentation can be lengthy without clearly showing which problems wer
 ## Features
 
 - Email/password registration with password confirmation, normalized email, bcrypt hashing at cost 12, Auth.js Credentials login/logout, and eight-hour JWT sessions.
-- Protected dashboard, paginated History, and saved analyses scoped to the authenticated user in every data query. Recent analyses include a delete button with confirmation; deletion permanently removes the saved record from the dashboard and History. The server requires authentication, same-origin requests, and an atomic owner-scoped delete.
+- Protected Overview and paginated Saved analyses, with records scoped to the authenticated user in every data query. Overview emphasizes starting a new analysis and previews only the three newest results; Saved analyses is the full archive. Recent results include a delete button with confirmation; deletion permanently removes the saved record from both views. The server requires authentication, same-origin requests, and an atomic owner-scoped delete.
 - Fictional or fully de-identified real-case source declarations, explicit privacy checks, and browser-only DOCX/TXT extraction with an editable review step. Original files and filenames are not uploaded.
 - Admission H&P and Progress Note workflows; full-note input or optional collapsible sections. In-memory drafts survive mode switches while the form remains mounted. Only active fields are submitted.
 - Laboratory, cardiac, imaging, other diagnostic studies, data activities, history/examination, and assessment/plan fields. At least one active documentation field is required.

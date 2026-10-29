@@ -78,7 +78,9 @@ try {
   assert.ok(!forbiddenHtml.includes(demoCases[0].sections.hpi));
   const history = await fetch(url("/dashboard/history"), { headers: aHeaders });
   assert.equal(history.status, 200);
-  assert.ok((await history.text()).includes(saved[0]));
+  const historyHtml = await history.text();
+  assert.ok(historyHtml.includes("<h1>Saved analyses</h1>"));
+  assert.ok(saved.every((id) => historyHtml.includes(id)), "Saved analyses must retain the full archive, not just the overview preview.");
   const otherHistory = await fetch(url("/dashboard/history"), { headers: bHeaders });
   assert.ok(!(await otherHistory.text()).includes(saved[0]));
   const crossOrigin = await fetch(url("/api/analyses"), { method: "POST", headers: { ...aHeaders, Origin: "https://untrusted.example" }, body: "{}" });
@@ -123,6 +125,9 @@ try {
   assert.equal(dashboardBefore.status, 200);
   const dashboardHtml = await dashboardBefore.text();
   assert.ok(dashboardHtml.includes(deleteTarget) && dashboardHtml.includes("delete-analysis-button"));
+  assert.ok(dashboardHtml.includes("<h1>Overview</h1>") && dashboardHtml.includes("Start a new analysis"));
+  const previewIds = [...dashboardHtml.matchAll(/<a href="\/dashboard\/analyses\/([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(previewIds, saved.slice(-3).reverse(), "Overview must show only the three latest results.");
   assert.equal((await fetch(deleteUrl, { method: "DELETE", headers: { Origin: base.origin } })).status, 401);
   assert.equal((await fetch(deleteUrl, { method: "DELETE", headers: bHeaders })).status, 404);
   assert.equal((await fetch(deleteUrl, { method: "DELETE", headers: { ...aHeaders, Origin: "https://untrusted.example" } })).status, 403);
