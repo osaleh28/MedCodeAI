@@ -11,9 +11,9 @@ export function NoteFileImport({ onApply, onBusy }: { onApply: (text: string) =>
   const [reviewed, setReviewed] = useState(false);
   const [error, setError] = useState("");
   const identifiers = preview === null ? [] : potentialIdentifiers(preview);
-  return <details className="finding-detail"><summary>Import PDF, Word, or text</summary>
-    <p className="field-help mt-3">Choose only fictional or already fully de-identified material you are authorized to use. Files are read in your browser; originals and filenames are not uploaded. Review the extracted text before adding it to the form. Scanned PDFs require OCR outside this app.</p>
-    <div className="field mt-4"><label htmlFor="note-file">Note file (PDF, .docx, .txt; up to 5 MB)</label><input id="note-file" type="file" accept=".pdf,.docx,.txt" disabled={busy} onChange={async (event) => {
+  return <details className="finding-detail"><summary>Import Word or text</summary>
+    <p className="field-help mt-3">Choose only fictional or already fully de-identified material you are authorized to use. Files are read in your browser; originals and filenames are not uploaded. Review the extracted text before adding it to the form. PDF and image imports are not supported.</p>
+    <div className="field mt-4"><label htmlFor="note-file">Note file (.docx or .txt; up to 5 MB)</label><input id="note-file" type="file" accept=".docx,.txt" disabled={busy} onChange={async (event) => {
       const file = event.target.files?.[0];
       event.target.value = "";
       if (!file) return;

@@ -1,17 +1,18 @@
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const MAX_NOTE_CHARACTERS = 24_000;
-export type NoteFileFormat = "pdf" | "docx" | "txt";
+export type NoteFileFormat = "docx" | "txt";
 
 export function noteFileFormat(name: string, size: number): NoteFileFormat {
   if (size <= 0 || size > MAX_FILE_BYTES) throw new Error("Choose a nonempty file no larger than 5 MB.");
   const extension = name.split(".").pop()?.toLowerCase();
-  if (extension !== "pdf" && extension !== "docx" && extension !== "txt") throw new Error("Choose a PDF, Word .docx, or plain .txt file. Legacy .doc files are not supported.");
+  if (extension === "pdf") throw new Error("PDF imports are not supported. Use Word .docx or plain .txt, or paste the note text.");
+  if (extension !== "docx" && extension !== "txt") throw new Error("Choose a Word .docx or plain .txt file. Legacy .doc files are not supported.");
   return extension;
 }
 
 export function checkedExtractedText(value: string): string {
   const text = value.replace(/\r\n?/g, "\n").trim();
-  if (!text || text.includes("\0")) throw new Error("No readable text was found. Scanned PDFs need OCR outside this app; alternatively paste text or use DOCX/TXT.");
+  if (!text || text.includes("\0")) throw new Error("No readable text was found. Use a DOCX or UTF-8 TXT file containing text, or paste the note text.");
   if (text.length > MAX_NOTE_CHARACTERS) throw new Error("The extracted note exceeds 24,000 characters. Use a shorter document.");
   return text;
 }
