@@ -14,6 +14,8 @@ const { emptySections, normalizeDocumentation } = await import(new URL("input.js
 const { reportSchema } = await import(new URL("report.js", root).href);
 const { evaluateMdm } = await import(new URL("mdm.js", root).href);
 const { configuredApiKey } = await import(new URL("provider-client.js", root).href);
+const { infectionOrdersCase } = await import(new URL("../../../tests/fixtures/infection-orders.js", root).href);
+const { respiratoryAdmissionCase } = await import(new URL("../../../tests/fixtures/respiratory-admission.js", root).href);
 configuredApiKey(process.env.OPENAI_API_KEY);
 const base = new URL(process.env.MEDCODE_TEST_URL || process.env.AUTH_URL || "http://localhost:3000");
 assert.ok(["localhost", "127.0.0.1"].includes(base.hostname), "Live smoke tests must target localhost.");
@@ -26,11 +28,15 @@ const cookieName = base.protocol === "https:" ? "__Secure-authjs.session-token" 
 const headers = { Origin: base.origin, "Content-Type": "application/json", Cookie: `${cookieName}=${await encode({ token: { sub: id }, secret: process.env.AUTH_SECRET, salt: cookieName, maxAge: 600 })}` };
 try {
   await db.query('INSERT INTO "User" (id,name,email,"passwordHash","updatedAt") VALUES ($1,$2,$3,$4,NOW())', [id, "Synthetic Live Audit", `${id}@example.invalid`, await hash(randomBytes(24).toString("base64"), 12)]);
-  const caseIds = process.argv.includes("--core")
+  const caseIds = process.argv.includes("--context") ? ["admission-respiratory-context", "admission-respiratory-context", "admission-orders", "admission-lower", "admission-moderate", "progress-moderate", "progress-high"] : process.argv.includes("--orders") ? ["admission-orders", "admission-unresolved-test"] : process.argv.includes("--core")
     ? [...demoCases.filter((sample) => /^(admission|progress)-(lower|moderate|high)$/.test(sample.id)).map((sample) => sample.id), "progress-incomplete"]
     : ["admission-moderate", "progress-moderate"];
   for (const [index, sampleId] of caseIds.entries()) {
-    let sample = sampleId === "progress-incomplete"
+    let sample = sampleId === "admission-respiratory-context" ? respiratoryAdmissionCase : sampleId === "admission-orders" ? infectionOrdersCase : sampleId === "admission-unresolved-test" ? (() => {
+      const sections = { ...infectionOrdersCase.sections, assessmentPlan: infectionOrdersCase.sections.assessmentPlan
+        .replace("We will send urine Legionella antigen. We will order urinalysis. I have ordered a standalone TSH assay.", "I have ordered an echocardiogram.") };
+      return { ...infectionOrdersCase, id: sampleId, sections, note: normalizeDocumentation({ noteType: "admission", inputMode: "sections", fullNote: "", sections }), expected: { code: null, minimumCode: "99222" } };
+    })() : sampleId === "progress-incomplete"
       ? { id: sampleId, noteType: "progress", note: "Entirely fictional hospital progress documentation. Patient stable. Continue current plan.", sections: { ...emptySections }, expected: { code: null } }
       : demoCases.find((item) => item.id === sampleId);
     if (process.argv.includes("--history-dates")) {
@@ -39,7 +45,7 @@ try {
       sample = { ...sample, sections, note: normalizeDocumentation({ noteType: sample.noteType, inputMode: "sections", fullNote: "", sections }) };
     }
     const inputMode = index % 2 ? "sections" : "full";
-    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), documentSource: index % 2 ? "deidentified" : "synthetic", privacyConfirmed: true, deidentificationConfirmed: index % 2 === 1, encounterConfirmed: true, improveHpi: sample.noteType === "admission", providerMode: "openai", sampleId: null };
+    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), documentSource: index % 2 ? "deidentified" : "synthetic", privacyConfirmed: true, deidentificationConfirmed: index % 2 === 1, encounterConfirmed: true, improveHpi: sample.noteType === "admission" && !process.argv.includes("--orders") && !process.argv.includes("--context"), providerMode: "openai", sampleId: null };
     const response = await fetch(new URL("/api/analyses", base), { method: "POST", headers, body: JSON.stringify(input), signal: AbortSignal.timeout(60_000) });
     const result = await response.json();
     assert.equal(response.status, 201, result.error || "Live analysis was not saved.");
@@ -64,14 +70,37 @@ try {
     // Recompute from original extraction alone: HPI wording is never an input.
     assert.equal(recomputed.potentialCode, report.mdm.potentialCode);
     assert.equal(recomputed.overall, report.mdm.overall);
+    assert.equal(recomputed.minimumSupportedCode, report.mdm.minimumSupportedCode);
+    assert.equal(record.suggestedCptCode, report.mdm.potentialCode ?? report.mdm.minimumSupportedCode);
+    if (sample.expected.minimumCode) {
+      assert.equal(report.mdm.minimumSupportedCode, sample.expected.minimumCode);
+      assert.equal(record.mdmComplexity, `At least ${report.mdm.minimum}`);
+    }
     const page = await fetch(new URL(`/dashboard/analyses/${result.id}`, base), { headers });
     assert.equal(page.status, 200);
-    assert.ok((await page.text()).includes("Live AI extraction"));
+    const resultHtml = await page.text();
+    assert.ok(resultHtml.includes("Live AI extraction"));
+    if (sample.expected.minimumCode) {
+      assert.ok(resultHtml.includes("Minimum supported CPT code"));
+      assert.ok(resultHtml.includes(sample.expected.minimumCode));
+      assert.ok(resultHtml.includes("Exact final level unresolved"));
+      const history = await fetch(new URL("/dashboard/history", base), { headers });
+      assert.equal(history.status, 200);
+      const historyHtml = await history.text();
+      assert.ok(historyHtml.includes(result.id) && historyHtml.includes(`At least ${report.mdm.minimum}`));
+    }
     if (report.hpi?.status === "available") assert.ok(sample.note.includes(report.hpi.originalHpi));
-    console.log(`PASS live ${sampleId} (${inputMode}): structured response, traceable definite findings, owner persistence/reopen, deterministic ${report.mdm.potentialCode || "indeterminate"}; HPI ${report.hpi?.status || "not requested"}.`);
-    console.log(`REVIEW ${sampleId}: expected fictional-case code ${sample.expected.code}; returned ${report.mdm.potentialCode || "indeterminate"}; ${findings.filter((item) => item.uncertain).length} uncertain findings. Exact excerpts and passing transport checks do not establish clinical/billing accuracy.`);
+    const displayedCode = report.mdm.potentialCode || (report.mdm.minimumSupportedCode ? `minimum supported ${report.mdm.minimumSupportedCode} (exact final level unresolved)` : "indeterminate");
+    console.log(`PASS live ${sampleId} (${inputMode}): structured response, traceable definite findings, owner persistence/reopen, deterministic ${displayedCode}; HPI ${report.hpi?.status || "not requested"}.`);
+    console.log(`REVIEW ${sampleId}: expected exact fictional-case code ${sample.expected.code}; displayed ${displayedCode}; ${findings.filter((item) => item.uncertain).length} uncertain findings. Exact excerpts and passing transport checks do not establish clinical/billing accuracy.`);
     console.log(`ELEMENTS ${sampleId}: problems=${report.mdm.problems.level || "uncertain"}, data=${report.mdm.data.level || "uncertain"}, risk=${report.mdm.risk.level || "uncertain"}; service conflicts=${report.extraction.encounterConcerns.length}.`);
-    if (report.mdm.potentialCode !== sample.expected.code) expectationMismatches++;
+    if (report.mdm.potentialCode !== sample.expected.code) {
+      expectationMismatches++;
+      // Controlled fictional fixtures only; no note text, quotes or free-form
+      // model explanations are printed in these transport diagnostics.
+      console.log(JSON.stringify({ case: sampleId, dataComplete: report.extraction.dataComplete, problemsComplete: report.extraction.problemsComplete, riskComplete: report.extraction.riskComplete, problems: report.extraction.problems.map(({criterion, addressed, uncertain}) => ({criterion, addressed, uncertain})), risks: report.extraction.risks.map(({criterion, uncertain}) => ({criterion, uncertain})),
+        data: report.extraction.data.map(({ kind, activity, uniqueKey, qualifies, uncertain, separatelyReported }) => ({ kind, activity, uniqueKey, qualifies, uncertain, separatelyReported })) }));
+    }
   }
   if (expectationMismatches) {
     console.error(`REVIEW REQUIRED: ${expectationMismatches} live case(s) differed from the reviewed fixture expectations. Transport/persistence passed; interpretation acceptance did not. No code was forced.`);

@@ -30,31 +30,31 @@ export function sourceExtractionSchema(source: SourceSpan[]) {
   // Put findings before completeness judgments, and clinical labels before
   // citations, so the model evaluates actual work before declaring uncertainty.
   return z.object({
-    isClinicalNote: rest.isClinicalNote.describe("True for fictional clinical notes. Synthetic status does not make documentation nonclinical."),
+    isClinicalNote: rest.isClinicalNote.describe("True for clinical documentation, including fictional or de-identified notes. This classification does not certify privacy or validate clinical facts."),
     serviceConflicts: z.array(z.object({
       service: z.enum(["initial_hospital_care", "subsequent_hospital_care", "consultation", "critical_care", "discharge_management", "same_day_admission_discharge"]),
       explanation: z.string(), evidence: evidence.min(1),
     }).strict()).describe("Only explicit SERVICE CATEGORY conflicts with the selected encounter. Never list diagnoses, symptoms, presenting complaints, documentation questions, or missing administrative details. Usually empty for an aligned hospital note."),
     problems: z.array(z.object({
       label: p.label, problemKey: p.problemKey, course: p.course, addressed: p.addressed,
-      criterion: p.criterion, management: p.management, explanation: p.explanation,
+      criterion: p.criterion.describe("Assess documented near-term severity without treatment. organ_threat can be supported by acute respiratory compromise with significant hypoxemia, increased work of breathing and new oxygen treatment; exact diagnostic phrases are not required. Do not invent respiratory failure. Stabilization after initial treatment does not automatically make the same actively managed illness stable_acute. A diagnosis name, isolated value or baseline oxygen alone is insufficient."), management: p.management, explanation: p.explanation,
       evidence, uncertain: p.uncertain,
     }).strict()),
     managementDecisions: z.array(z.object({
       decision: r.decision,
-      criterion: r.criterion.describe("prescription_decision includes starting, changing, stopping, or reasoned continuation of prescription therapy. Routine monitoring or improvement does not erase this decision. minimal_support/low_management are for actual supportive low-risk decisions, not absence of high-risk work."),
+      criterion: r.criterion.describe("admission_or_escalation_decision can be documented by the treating clinician's admission assessment and necessary inpatient treatment/disposition plan; no exact admission phrase or separate author-role attestation is required. Respect explicit prior placement without a new decision. prescription_decision includes starting, changing, stopping, or reasoned continuation of prescription therapy. Routine monitoring or improvement does not erase this decision. minimal_support/low_management are for actual supportive low-risk decisions, not absence of high-risk work."),
       explanation: r.explanation, evidence, uncertain: r.uncertain,
     }).strict()).describe("All actual documented management decisions, including supportive hydration/diet and reasoned prescription choices. Do not return an empty list merely because there is no high-risk management."),
     data: z.array(z.object({
       label: d.label, kind: d.kind, activity: d.activity,
-      uniqueKey: d.uniqueKey.describe("Use exactly blood_count, metabolic_panel, electrocardiogram, chest_radiograph for these groups; no suffixes. Other tests/sources retain their own stable identity."),
+      uniqueKey: d.uniqueKey.describe("Use exactly blood_count, metabolic_panel, electrocardiogram, chest_radiograph, urinalysis, thyroid_stimulating_hormone, legionella_urine_antigen for these groups; no suffixes. Standalone TSH only, not an unspecified/reflex thyroid panel. Urine antigen is distinct from routine urinalysis. Other tests/sources retain their own stable identity."),
       qualifies: d.qualifies, separatelyReported: d.separatelyReported, performedByOther: d.performedByOther,
       explanation: d.explanation, evidence, uncertain: d.uncertain,
     }).strict()),
     gaps: z.array(gaps.element.extend({ evidence })),
     summary: rest.summary, uncertainties: rest.uncertainties,
     problemsComplete: rest.problemsComplete,
-    dataComplete: rest.dataComplete.describe("True when current data activities are clear, including an explicit statement that no tests/records/historian/discussion were used. Empty activities do not imply incompleteness when no activity is documented explicitly."),
+    dataComplete: rest.dataComplete.describe("Confidence that the documented data activities were captured, NOT whether the clinical workup or test results are finished. Return true when explicit orders are clear even if results are pending. Three clear orders plus an explicit denial of other data activities is complete. Do not return false for missing results or hypothetical undocumented work. False requires a specific unresolved ambiguity about an actual documented activity, explained in gaps/uncertainties."),
     riskComplete: rest.riskComplete.describe("True when current management decisions are clear, including explicitly documented supportive care. No prescription or high-risk decision is not itself missing management information."),
   }).strict();
 }

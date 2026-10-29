@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       // A crafted request must not retain an inactive workflow's hidden draft.
       submittedInput: { documentSource: input.documentSource, privacyConfirmed: true, deidentificationConfirmed: input.deidentificationConfirmed, fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? Object.fromEntries(sectionKeys(input.noteType).map((key) => [key, input.sections[key]])) : {} },
       structuredAnalysis: report, problemsComplexity: mdm.problems.level ?? "Indeterminate", dataComplexity: mdm.data.level ?? "Indeterminate", riskComplexity: mdm.risk.level ?? "Indeterminate",
-      mdmComplexity: mdm.overall ?? "Indeterminate", suggestedCptCode: mdm.potentialCode, rationale: mdm.explanation,
+      mdmComplexity: mdm.overall ?? (mdm.minimumSupportedCode ? `At least ${mdm.minimum}` : "Indeterminate"), suggestedCptCode: mdm.potentialCode ?? mdm.minimumSupportedCode, rationale: mdm.explanation,
       documentationGaps: extraction.gaps, hpiRevision: hpi?.suggestedHpi || null,
     }, select: { id: true } });
     return json(record, 201);

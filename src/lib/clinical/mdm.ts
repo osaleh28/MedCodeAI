@@ -2,16 +2,19 @@ import { z } from "zod";
 import { hasGroundedEvidence, type ClinicalExtraction, type EvidenceFinding } from "./contracts";
 import type { NoteType } from "./input";
 
-export const RULE_VERSION = "hospital-mdm-2023-public-v2";
+export const RULE_VERSION = "hospital-mdm-2023-public-v3";
 export const ruleSources = [
   { title: "AMA hospital E/M guidelines, effective January 2023 (Table 1 and hospital descriptors)", url: "https://www.ama-assn.org/system/files/2023-e-m-descriptors-guidelines.pdf" },
   { title: "AMA E/M clarifications, updated January 2026", url: "https://www.ama-assn.org/practice-management/cpt/cpt-evaluation-and-management-em-revisions-faqs" },
   { title: "CMS Evaluation and Management Services, May 2026", url: "https://www.cms.gov/files/document/mln006764-evaluation-management-services.pdf" },
+  { title: "CMS test identity reference: urinalysis (overlapping methods grouped conservatively)", url: "https://www.cms.gov/files/document/transparency-coverage-500-items-services-508.pdf" },
+  { title: "Mayo Clinic Laboratories: standalone TSH test identity", url: "https://www.mayocliniclabs.com/api/sitecore/TestCatalog/DownloadTestCatalog?testId=8939" },
+  { title: "Benefis Health System test catalog: Legionella urine antigen identity", url: "https://benefis.testcatalog.org/show/LEGAG" },
 ];
 export const levels = ["Straightforward", "Low", "Moderate", "High"] as const;
 // Intentionally limited verified identity catalog. Unmapped diagnostic tests are
 // displayed but cannot earn definite unique-test credit in this MVP.
-export const supportedTestKeys = new Set(["blood_count", "metabolic_panel", "electrocardiogram", "chest_radiograph"]);
+export const supportedTestKeys = new Set(["blood_count", "metabolic_panel", "electrocardiogram", "chest_radiograph", "urinalysis", "thyroid_stimulating_hormone", "legionella_urine_antigen"]);
 export type MdmLevel = typeof levels[number];
 const levelSchema = z.enum(levels);
 const elementSchema = z.object({
@@ -23,6 +26,8 @@ export const mdmResultSchema = z.object({
   problems: elementSchema, data: elementSchema, risk: elementSchema,
   overall: levelSchema.nullable(), minimum: levelSchema, maximum: levelSchema,
   potentialCode: z.enum(["99221", "99222", "99223", "99231", "99232", "99233"]).nullable(),
+  // Historical reports retain their original assessment until reanalyzed.
+  minimumSupportedCode: z.enum(["99221", "99222", "99223", "99231", "99232", "99233"]).nullable().default(null),
   explanation: z.string(), uncertaintyNotice: z.string(), limitations: z.array(z.string()),
 });
 export type MdmResult = z.infer<typeof mdmResultSchema>;
@@ -87,6 +92,9 @@ export function canonicalTestKey(key: string) {
     bmp: "metabolic_panel", cmp: "metabolic_panel", basic_metabolic_panel: "metabolic_panel", comprehensive_metabolic_panel: "metabolic_panel",
     sodium: "metabolic_panel", potassium: "metabolic_panel", creatinine: "metabolic_panel", glucose: "metabolic_panel",
     ecg: "electrocardiogram", ekg: "electrocardiogram", ecg_12_lead: "electrocardiogram",
+    ua: "urinalysis", urine_dipstick: "urinalysis", urinalysis_with_microscopy: "urinalysis", urinalysis_without_microscopy: "urinalysis", urine_microscopy: "urinalysis",
+    tsh: "thyroid_stimulating_hormone", serum_tsh: "thyroid_stimulating_hormone", thyroid_stimulating_hormone_assay: "thyroid_stimulating_hormone",
+    urine_legionella_antigen: "legionella_urine_antigen", legionella_antigen_urine: "legionella_urine_antigen", legionella_urinary_antigen: "legionella_urine_antigen",
   };
   return aliases[value] ?? value;
 }
@@ -181,19 +189,26 @@ export function evaluateMdm(extraction: ClinicalExtraction, note: string, noteTy
   const inScope = extraction.isClinicalNote && extraction.encounterConcerns.length === 0;
   const overall = minimum === maximum && inScope ? minimum : null;
   const potentialCode = overall ? mapHospitalCode(noteType, overall) : null;
+  // Two definite elements at low or above establish a supported floor even if
+  // ambiguous work could justify a higher level. Never promote that floor to a
+  // resolved final level, or derive a code from default zero-credit elements.
+  const minimumSupportedCode = inScope && (overall || numberOf(minimum) >= 1) ? mapHospitalCode(noteType, minimum) : null;
+  const unresolvedElements = [["problems", problems], ["data", data], ["management risk", risk]] as const;
+  const needsClarification = unresolvedElements.filter(([, item]) => item.level === null).map(([name]) => name).join(", ");
   return {
-    ruleVersion: RULE_VERSION, assessedAt: new Date().toISOString(), problems, data, risk, overall, minimum, maximum, potentialCode,
+    ruleVersion: RULE_VERSION, assessedAt: new Date().toISOString(), problems, data, risk, overall, minimum, maximum, potentialCode, minimumSupportedCode,
     explanation: overall
       ? `At least two MDM elements meet or exceed ${overall.toLowerCase()} complexity. Under the confirmed ${noteType === "admission" ? "initial" : "subsequent"} hospital encounter assumption, the potential code is ${potentialCode}.`
       : !inScope ? "The documentation does not reliably establish an in-scope clinical encounter. No code was assigned."
+        : minimumSupportedCode ? `At least two documented MDM elements meet or exceed ${minimum.toLowerCase()} complexity. Under the confirmed ${noteType === "admission" ? "initial" : "subsequent"} hospital encounter assumption, ${minimumSupportedCode} is the minimum supported code. A higher level up to ${maximum.toLowerCase()} remains unresolved; clarify ${needsClarification} before selecting a higher code. The exact final level has not been established.`
         : `Unresolved documentation permits MDM from ${minimum.toLowerCase()} to ${maximum.toLowerCase()}. A reliable final level and code cannot be determined.`,
     uncertaintyNotice: "Educational assessment, not validated coding advice. Clinical categories are AI interpretations of the original note, not verified facts. Missing information is never treated as work performed.",
     limitations: [
-      "Public AMA 2023 hospital MDM framework; CMS May 2026 context; reviewed October 28, 2026. This is not an exhaustive implementation of the licensed 2026 CPT manual or payer policies.",
+      "Public AMA 2023 hospital MDM framework; CMS May 2026 context; reviewed October 29, 2026. This is not an exhaustive implementation of the licensed 2026 CPT manual or payer policies.",
       "Initial/subsequent inpatient or observation encounter assumed by the user; note titles do not establish eligibility. No time-based coding, consultations, critical care, discharge, same-day admission/discharge, modifiers, or payer-specific edits.",
-      "Uncertain findings are excluded from definite credit. If unresolved evidence could change the overall level, the result is indeterminate. Two unambiguous high elements can still establish high MDM despite an unknown third element.",
+      "Uncertain findings are excluded from definite credit. If ambiguity could change the level, the exact final level remains unresolved. A separately labeled minimum supported code may be shown when two definite elements establish at least low MDM. No code is supplied from missing evidence or a conflicting service category. Two unambiguous high elements can establish high MDM despite an unknown third element.",
       "Test identity/overlap, external-source eligibility, independent interpretation, separate reporting, and clinical severity require human review. Unverifiable activities are not credited.",
-      "Definite test identities in this MVP are limited to blood-count panels, overlapping metabolic panels, ECG, and chest radiographs. Other studies remain visible but unresolved rather than guessed into unique-test credit.",
+      "Definite test identities in this MVP cover blood-count panels, overlapping metabolic panels, ECG, chest radiographs, urinalysis, standalone TSH, and Legionella urine antigen. Urinalysis methods/components are grouped conservatively. Other studies, reflex panels, and uncertain identities remain unresolved; results alone receive no activity credit. Lab catalog references establish identity only, not E/M eligibility or clinical validation.",
       "Only original documentation is evaluated; HPI wording suggestions do not enter the coding engine.",
     ],
   };
