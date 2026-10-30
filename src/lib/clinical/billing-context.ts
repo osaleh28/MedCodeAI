@@ -35,7 +35,7 @@ export function verifyReportingContext(extraction: ClinicalExtraction, context: 
   return { ...extraction, data: extraction.data.map((item) => {
     const confirmed = item.activity === "independent_interpretation" ? context.independentInterpretationEligible
       : item.activity === "external_discussion" ? context.externalDiscussionNotSeparatelyReported : true;
-    const explicitStatement = item.evidence.some((quote) => /\bnot separately (?:reported|billed)\b/i.test(quote));
+    const explicitStatement = item.evidence.some((quote) => /\b(?:not separately (?:reported|billed)|I am not billing separately)\b/i.test(quote));
     if (item.separatelyReported === false && !confirmed && !explicitStatement) return { ...item, separatelyReported: null };
     return item;
   }) };

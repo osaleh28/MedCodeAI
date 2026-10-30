@@ -8,7 +8,7 @@ import { demoCases } from "@/lib/clinical/demos";
 import { MdmLearningGuide } from "@/components/mdm-learning-guide";
 import { NoteFileImport } from "@/components/note-file-import";
 import { potentialIdentifiers } from "@/lib/clinical/privacy";
-import { billingContextHelp, billingContextLabels, emptyBillingContext } from "@/lib/clinical/billing-context";
+import { DataDocumentationLesson } from "@/components/data-documentation-lesson";
 import { ProgressNoteGuide } from "@/components/progress-note-guide";
 import { MAX_NOTE_CHARACTERS, LIVE_ANALYSES_PER_DAY } from "@/lib/clinical/limits";
 import { HospitalCodeCards } from "@/components/hospital-code-cards";
@@ -20,9 +20,8 @@ export function NewAnalysisForm() {
   const [fullNote, setFullNote] = useState("");
   const [sections, setSections] = useState({ ...emptySections });
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
-  const [billingContext, setBillingContext] = useState({ ...emptyBillingContext });
   const [importing, setImporting] = useState(false);
-  function resetPrivacy() { setPrivacyConfirmed(false); setBillingContext({ ...emptyBillingContext }); }
+  function resetPrivacy() { setPrivacyConfirmed(false); }
   const [improveHpi, setImproveHpi] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -51,7 +50,7 @@ export function NewAnalysisForm() {
     const activeSections = { ...emptySections };
     if (inputMode === "sections") for (const key of sectionKeys(noteType)) activeSections[key] = sections[key];
     const input = analysisInputSchema.safeParse({ noteType, inputMode, fullNote: inputMode === "full" ? fullNote : "", sections: activeSections,
-      privacyConfirmed, billingContext: providerMode === "prepared_demo" ? emptyBillingContext : billingContext, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
+      privacyConfirmed, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
     if (!input.success) {
       setError(input.error.issues.map((issue) => issue.path[0] === "privacyConfirmed" ? "Step 3: confirm that the documentation contains no identifying patient information and is authorized for this demonstration."
           : issue.message).join(" "));
@@ -94,16 +93,8 @@ export function NewAnalysisForm() {
         <p className="field-help mb-5">Your drafts stay here when you switch modes. Only the active mode and the selected workflow’s fields are submitted. Drafts are not stored in browser storage.</p>
         {inputMode === "full" ? <div className="field"><label htmlFor="full-note">Complete {noteLabels[noteType]}</label><textarea id="full-note" rows={17} value={fullNote} onChange={(e) => { setFullNote(e.target.value); resetPrivacy(); }} placeholder="Paste fictional or fully de-identified clinical documentation. Never enter identifying patient information." /><span className="field-help">{fullNote.length.toLocaleString()} / {MAX_NOTE_CHARACTERS.toLocaleString()} characters</span></div> : <div className="section-inputs">{sectionKeys(noteType).map((key, index) => <details key={key} open={index === 0 || key === "assessmentPlan"}><summary>{sectionLabels[key]} <span className="field-help">{sections[key].trim() ? "Text added" : "Optional"}</span></summary><div className="field"><label className="sr-only" htmlFor={`section-${key}`}>{sectionLabels[key]}</label><textarea id={`section-${key}`} rows={key === "assessmentPlan" || key === "hpi" ? 6 : 4} value={sections[key]} onChange={(e) => { setSections((previous) => ({ ...previous, [key]: e.target.value })); resetPrivacy(); }} placeholder={`Add ${sectionLabels[key].toLowerCase()} if documented.`} /></div></details>)}</div>}
         <p className={activeNote.length > MAX_NOTE_CHARACTERS ? "form-error mt-3" : "field-help mt-3"} aria-live="polite">Combined documentation: {activeNote.length.toLocaleString()} / {MAX_NOTE_CHARACTERS.toLocaleString()} characters, including section headings. {activeNote.length > MAX_NOTE_CHARACTERS && "Shorten the note before submitting. Your text has been preserved."}</p>
-        {noteType === "admission" && <div className="hpi-option"><label className="checkbox-label"><input type="checkbox" checked={improveHpi} onChange={(e) => setImproveHpi(e.target.checked)} /><span><strong>Improve HPI (optional)</strong><br />Include a separate wording suggestion and clarification questions. It will not replace your note or affect the MDM calculation.</span></label></div>}
+        {noteType === "admission" && <div className="hpi-option"><label className="checkbox-label"><input type="checkbox" checked={improveHpi} onChange={(e) => setImproveHpi(e.target.checked)} /><span><strong>Improve HPI (optional)</strong><br />Include a separate wording suggestion and clarification questions. It will not replace your note or affect the MDM calculation.</span></label><details className="finding-detail mt-3"><summary>How to improve HPI and document your work</summary><p className="mt-3">Keep the HPI focused on symptoms, chronology, and relevant history already obtained. Review wording suggestions against your original note.</p><DataDocumentationLesson /></details></div>}
       </section>
-
-      {!usePreparedExample && <section className="panel"><details><summary>Billing questions (optional)</summary>
-        <p className="field-help mt-3">Some notes do not say whether this work is billed separately. These answers help the app decide whether documented test interpretations and discussions can count toward MDM data complexity. Check a box only if the statement is true.</p>
-        {(Object.keys(billingContextLabels) as (keyof typeof billingContextLabels)[]).map((key) => <div key={key} className="mt-4"><label className="checkbox-label"><input type="checkbox" checked={billingContext[key]} aria-describedby={`billing-help-${key}`} onChange={(e) => { setBillingContext((previous) => ({ ...previous, [key]: e.target.checked })); setPrivacyConfirmed(false); }} /><span>{billingContextLabels[key]}</span></label><p id={`billing-help-${key}`} className="field-help mt-2 ml-6">{billingContextHelp[key]}</p></div>)}
-        <p className="field-help mt-4"><strong>This asks about what you bill.</strong> Another clinician billing for their own work does not automatically exclude yours.</p>
-        <p className="field-help mt-3">Not sure? Leave the box unchecked. The app will treat that billing detail as unknown; ordinary documented lab reviews can still count. The note must still describe the work. Checking a box does not guarantee a code or change your note.</p>
-        <p className="field-help mt-3">For fictional examples, use only what the scenario establishes. These boxes are cleared if you edit the note or change its type or input method.</p>
-      </details></section>}
 
       <section className="panel"><h2>3. Review and analyze</h2><label className="checkbox-label mt-5"><input type="checkbox" checked={privacyConfirmed} onChange={(e) => setPrivacyConfirmed(e.target.checked)} required /><span>I confirm the documentation is fictional or fully de-identified, contains no identifying patient information, and I am authorized to use it. {usePreparedExample ? "The submitted text and prepared results are saved to my account without an AI request." : "Live analysis sends the reviewed text to OpenAI; the submitted text and results are saved to my account."}</span></label>
         <p className="field-help mt-3">Live AI: up to {LIVE_ANALYSES_PER_DAY} attempts per account each day, with one analysis running at a time. Daily limits reset at midnight UTC. Live AI pauses when the shared demo budget is reached; prepared examples remain available.</p>

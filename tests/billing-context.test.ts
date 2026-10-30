@@ -64,3 +64,14 @@ test("provider assumptions cannot establish separate-reporting eligibility", () 
   sample.data[0].separatelyReported = true;
   assert.equal(verifyReportingContext(sample, { independentInterpretationEligible: true, externalDiscussionNotSeparatelyReported: true }).data[0].separatelyReported, true);
 });
+
+test("the learning point's first-person separate-billing wording is recognized only when present in source evidence", () => {
+  const extraction = structuredClone(infectionOrdersCase.extraction);
+  const item = extraction.data[0];
+  extraction.data = [
+    { ...item, activity: "independent_interpretation", separatelyReported: false, evidence: ["I personally interpreted tests performed by someone else, and I am not billing separately for those interpretations."] },
+    { ...item, activity: "external_discussion", separatelyReported: false, evidence: ["I had direct discussions about care or test findings with an outside clinician, and I am not billing separately for those discussions."] },
+    { ...item, activity: "external_discussion", separatelyReported: false, evidence: ["I am not sure whether this discussion will be billed separately."] },
+  ];
+  assert.deepEqual(verifyReportingContext(extraction, emptyBillingContext).data.map((entry) => entry.separatelyReported), [false, false, null]);
+});

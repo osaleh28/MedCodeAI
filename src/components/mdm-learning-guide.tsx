@@ -1,4 +1,5 @@
 import { ruleSources } from "@/lib/clinical/mdm";
+import { DataDocumentationLesson } from "@/components/data-documentation-lesson";
 
 const lessons = [
   { title: "Problems addressed", text: "Assess the conditions actually evaluated or managed today. Distinguish a stable condition at the patient's treatment goal from a flare or organ threat. A diagnosis list alone does not establish complexity." },
@@ -13,6 +14,7 @@ export function MdmLearningGuide() {
     <h2>How MDM complexity is determined</h2>
       <p className="mt-4 text-sm text-slate-600">The supplied worksheet uses an older point method. This guide adapts its teaching topics to the AMA hospital E/M framework effective in 2023. MedCode AI evaluates problems, data, and management risk separately; it does not add the worksheet’s diagnosis or data points.</p>
       <div className="learning-guide-grid">{lessons.map((lesson) => <article key={lesson.title}><h3>{lesson.title}</h3><p>{lesson.text}</p></article>)}</div>
+      <details className="finding-detail mt-5"><summary>Learning point: your own interpretations and direct discussions</summary><DataDocumentationLesson /></details>
       <div className="uncertainty-box mt-5">
         <h3>The two-of-three check</h3>
         <p className="text-sm mt-2">At least <strong>two of the three MDM elements must meet or exceed a level</strong> for the overall assessment to reach that level.</p>
