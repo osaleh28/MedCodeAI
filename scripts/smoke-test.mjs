@@ -35,7 +35,7 @@ try {
   const saved = [];
   for (const [index, sample] of demoCases.entries()) {
     const inputMode = index % 2 ? "sections" : "full";
-    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), syntheticOnly: true, improveHpi: sample.noteType === "admission", providerMode: "prepared_demo", sampleId: sample.id, billingContext: { independentInterpretationEligible: true, externalDiscussionNotSeparatelyReported: true } };
+    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), privacyConfirmed: true, improveHpi: sample.noteType === "admission", providerMode: "prepared_demo", sampleId: sample.id, billingContext: { independentInterpretationEligible: true, externalDiscussionNotSeparatelyReported: true } };
     const inactiveKey = sample.noteType === "admission" ? "intervalHistory" : "hpi";
     input.sections = { ...input.sections, [inactiveKey]: "Inactive fictional draft must not be retained." };
     const response = await fetch(url("/api/analyses"), { method: "POST", headers: aHeaders, body: JSON.stringify(input) });
@@ -52,6 +52,8 @@ try {
     if (inputMode === "full") assert.deepEqual(record.submittedInput.sections, {});
     assert.equal(record.suggestedCptCode, sample.expected.code);
     assert.equal(record.structuredAnalysis.origin, "prepared_demo");
+    assert.equal(record.structuredAnalysis.documentSource, "synthetic");
+    assert.equal(record.syntheticDataConfirmed, true);
     assert.deepEqual(record.structuredAnalysis.billingContext, { independentInterpretationEligible: false, externalDiscussionNotSeparatelyReported: false });
     assert.deepEqual(record.submittedInput.billingContext, record.structuredAnalysis.billingContext);
     assert.equal(record.structuredAnalysis.mdm.overall, sample.expected.overall);
@@ -86,15 +88,13 @@ try {
   const crossOrigin = await fetch(url("/api/analyses"), { method: "POST", headers: { ...aHeaders, Origin: "https://untrusted.example" }, body: "{}" });
   assert.equal(crossOrigin.status, 403);
   const sample = demoCases[0];
-  const validInput = { noteType: sample.noteType, inputMode: "full", fullNote: sample.note, sections: sample.sections, syntheticOnly: true, improveHpi: false, providerMode: "prepared_demo", sampleId: sample.id };
+  const validInput = { noteType: sample.noteType, inputMode: "full", fullNote: sample.note, sections: sample.sections, privacyConfirmed: true, improveHpi: false, providerMode: "prepared_demo", sampleId: sample.id };
   for (const input of [
     { ...validInput, fullNote: "", sections: {} },
-    { ...validInput, syntheticOnly: false },
+    { ...validInput, privacyConfirmed: false },
     { ...validInput, userId: ids[1] },
     { ...validInput, fullNote: "MRN: 123456" },
-    { ...validInput, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: false, providerMode: "openai" },
-    { ...validInput, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: true },
-    { ...validInput, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: true, providerMode: "openai", fullNote: "Patient name: Fictional Person" },
+    { ...validInput, privacyConfirmed: true, providerMode: "openai", fullNote: "Patient name: Fictional Person" },
     { ...validInput, fullNote: sample.note + " Edited documentation." },
   ]) {
     const response = await fetch(url("/api/analyses"), { method: "POST", headers: aHeaders, body: JSON.stringify(input) });

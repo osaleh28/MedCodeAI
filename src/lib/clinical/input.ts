@@ -38,9 +38,11 @@ export const analysisInputSchema = z.object({
   inputMode: z.enum(["full", "sections"]),
   fullNote: text,
   sections: sectionsSchema,
-  documentSource: z.enum(["synthetic", "deidentified"]).default("synthetic"),
+  // Legacy fields remain accepted for previously loaded forms. New records
+  // classify verified prepared examples on the server; other input is neutral.
+  documentSource: z.enum(["synthetic", "deidentified", "user_provided"]).optional(),
   privacyConfirmed: z.boolean().optional(),
-  deidentificationConfirmed: z.boolean().default(false),
+  deidentificationConfirmed: z.boolean().optional(),
   // Compatibility with the previously deployed fictional-only form.
   syntheticOnly: z.boolean().optional(),
   // Accepted only for compatibility with previously loaded forms. The selected
@@ -51,10 +53,8 @@ export const analysisInputSchema = z.object({
   sampleId: z.string().max(80).nullable(),
   billingContext: billingContextSchema.default(emptyBillingContext),
 }).strict().superRefine((input, ctx) => {
-  const confirmed = input.privacyConfirmed === true || (input.privacyConfirmed === undefined && input.documentSource === "synthetic" && input.syntheticOnly === true);
+  const confirmed = input.privacyConfirmed === true || (input.privacyConfirmed === undefined && input.documentSource !== "deidentified" && input.syntheticOnly === true);
   if (!confirmed) ctx.addIssue({ code: "custom", message: "Confirm that the documentation contains no identifying patient information and may be submitted for this demonstration.", path: ["privacyConfirmed"] });
-  if (input.documentSource === "deidentified" && !input.deidentificationConfirmed) ctx.addIssue({ code: "custom", message: "Confirm that this real-case note has already been fully de-identified and you are authorized to use it.", path: ["deidentificationConfirmed"] });
-  if (input.providerMode === "prepared_demo" && input.documentSource !== "synthetic") ctx.addIssue({ code: "custom", message: "Prepared examples are fictional teaching notes. Use live AI for de-identified real-case notes.", path: ["documentSource"] });
   const note = normalizeDocumentation(input);
   if (!note.trim()) ctx.addIssue({ code: "custom", message: "Enter documentation in at least one active field.", path: ["fullNote"] });
   if (note.length > MAX_NOTE_CHARACTERS) ctx.addIssue({ code: "custom", message: "Keep the combined documentation within 12,000 characters, including section headings.", path: ["fullNote"] });

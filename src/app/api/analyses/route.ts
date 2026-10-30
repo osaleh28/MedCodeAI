@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     if (containsObviousIdentifiers(note)) return json({ error: "A potential patient full name, date of birth, or hospital MRN was detected. Remove these before submitting. Historical calendar dates are not automatically blocked. Nothing was sent to the AI provider or saved. This limited check does not certify de-identification." }, 400);
     const prepared = input.providerMode === "prepared_demo" ? resolvePreparedCase(input.sampleId, note, input.noteType) : null;
     if (input.providerMode === "prepared_demo" && !prepared) return json({ error: "Prepared mode requires an unchanged built-in example. Use live AI for edited documentation." }, 400);
+    const documentSource = prepared ? "synthetic" : "user_provided";
     const configuration = prepared ? null : getAiConfiguration();
     const billingContext = prepared ? emptyBillingContext : input.billingContext;
     if (!(await allowAuthAttempt(user.id, prepared ? "demo" : "analysis"))) return json({ error: "Analysis limit reached. Try again in 15 minutes." }, 429);
@@ -54,14 +55,14 @@ export async function POST(request: Request) {
     })();
     const extraction = addProgressClarifications(groundExtraction(extracted, note), note, input.noteType);
     const mdm = evaluateMdm(extraction, note, input.noteType);
-    const report = reportSchema.parse({ schemaVersion: 1, documentSource: input.documentSource, billingContext, origin: input.providerMode, model: configuration?.model ?? null,
+    const report = reportSchema.parse({ schemaVersion: 1, documentSource, billingContext, origin: input.providerMode, model: configuration?.model ?? null,
       demoCaseId: prepared?.id ?? null, exampleRationale: prepared?.expected.rationale ?? null, extraction, mdm, hpi });
     const record = await getDb().billingAnalysis.create({ data: {
       userId: user.id, title: prepared?.title ?? `${noteLabels[input.noteType]} analysis`,
-      syntheticNote: note, syntheticDataConfirmed: input.documentSource === "synthetic", noteType: input.noteType, inputMode: input.inputMode,
+      syntheticNote: note, syntheticDataConfirmed: documentSource === "synthetic", noteType: input.noteType, inputMode: input.inputMode,
       // Enforce active-field persistence on the server as well as the form.
       // A crafted request must not retain an inactive workflow's hidden draft.
-      submittedInput: { documentSource: input.documentSource, billingContext, privacyConfirmed: true, deidentificationConfirmed: input.deidentificationConfirmed, fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? Object.fromEntries(sectionKeys(input.noteType).map((key) => [key, input.sections[key]])) : {} },
+      submittedInput: { documentSource, billingContext, privacyConfirmed: true, fullNote: input.inputMode === "full" ? input.fullNote : "", sections: input.inputMode === "sections" ? Object.fromEntries(sectionKeys(input.noteType).map((key) => [key, input.sections[key]])) : {} },
       structuredAnalysis: report, problemsComplexity: mdm.problems.level ?? "Indeterminate", dataComplexity: mdm.data.level ?? "Indeterminate", riskComplexity: mdm.risk.level ?? "Indeterminate",
       mdmComplexity: mdm.overall ?? (mdm.minimumSupportedCode ? `At least ${mdm.minimum}` : "Indeterminate"), suggestedCptCode: mdm.potentialCode ?? mdm.minimumSupportedCode, rationale: mdm.explanation,
       documentationGaps: extraction.gaps, hpiRevision: hpi?.suggestedHpi || null,

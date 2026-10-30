@@ -7,11 +7,15 @@ import { reportSchema } from "../src/lib/clinical/report";
 import { demoCases } from "../src/lib/clinical/demos";
 import { evaluateMdm } from "../src/lib/clinical/mdm";
 
-const input = { noteType: "progress", inputMode: "full", fullNote: "Fictional teaching documentation.", sections: emptySections, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: true, improveHpi: false, providerMode: "openai", sampleId: null };
-test("de-identified source requires separate explicit permission and cannot claim a prepared fixture", () => {
+const input = { noteType: "progress", inputMode: "full", fullNote: "Fictional teaching documentation.", sections: emptySections, privacyConfirmed: true, improveHpi: false, providerMode: "openai", sampleId: null };
+test("one privacy acknowledgement works without a source declaration or extra confirmation", () => {
   assert.equal(analysisInputSchema.safeParse(input).success, true);
-  for (const changed of [{ deidentificationConfirmed: false }, { privacyConfirmed: false }, { privacyConfirmed: undefined, syntheticOnly: true }, { providerMode: "prepared_demo" }]) assert.equal(analysisInputSchema.safeParse({ ...input, ...changed }).success, false);
-  assert.equal(analysisInputSchema.safeParse({ ...input, documentSource: "synthetic", deidentificationConfirmed: false }).success, true);
+  for (const privacyConfirmed of [false, undefined]) assert.equal(analysisInputSchema.safeParse({ ...input, privacyConfirmed }).success, false);
+  for (const documentSource of ["synthetic", "deidentified", "user_provided"] as const) {
+    assert.equal(analysisInputSchema.safeParse({ ...input, documentSource, deidentificationConfirmed: false }).success, true);
+  }
+  assert.equal(analysisInputSchema.safeParse({ ...input, privacyConfirmed: false, syntheticOnly: true }).success, false);
+  assert.equal(analysisInputSchema.safeParse({ ...input, privacyConfirmed: undefined, documentSource: "deidentified", syntheticOnly: true }).success, false);
 });
 test("screening returns categories without reproducing identifier values", () => {
   for (const note of ["Patient name: Fictional Person", "Patient: Fictional Person", "Patient's Full Name: Fictional Person", "Name: Person, Fictional", "DOB: 1970-01-01", "Date of birth 01/01/1970", "Birthdate: March 1, 1970", "MRN: 123456", "MRN 123456", "Medical record number: A123456", "Medical record no. 123456", "Medical record # 123456"]) {
@@ -66,5 +70,9 @@ test("older reports default to fictional; declared source never changes determin
   const mdm = evaluateMdm(sample.extraction, sample.note, sample.noteType);
   const old = { schemaVersion: 1, origin: "prepared_demo", model: null, demoCaseId: sample.id, exampleRationale: null, extraction: sample.extraction, mdm, hpi: null };
   assert.equal(reportSchema.parse(old).documentSource, "synthetic");
-  assert.deepEqual(reportSchema.parse({ ...old, documentSource: "deidentified" }).mdm, mdm);
+  for (const documentSource of ["synthetic", "deidentified", "user_provided"] as const) {
+    const parsed = reportSchema.parse({ ...old, documentSource });
+    assert.equal(parsed.documentSource, documentSource);
+    assert.deepEqual(parsed.mdm, mdm);
+  }
 });

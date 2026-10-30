@@ -7,7 +7,7 @@ import { analysisInputSchema, emptySections, noteLabels, normalizeDocumentation,
 import { demoCases } from "@/lib/clinical/demos";
 import { MdmLearningGuide } from "@/components/mdm-learning-guide";
 import { NoteFileImport } from "@/components/note-file-import";
-import { documentSourceLabels, potentialIdentifiers, type DocumentSource } from "@/lib/clinical/privacy";
+import { potentialIdentifiers } from "@/lib/clinical/privacy";
 import { billingContextHelp, billingContextLabels, emptyBillingContext } from "@/lib/clinical/billing-context";
 import { ProgressNoteGuide } from "@/components/progress-note-guide";
 import { MAX_NOTE_CHARACTERS, LIVE_ANALYSES_PER_DAY } from "@/lib/clinical/limits";
@@ -19,12 +19,10 @@ export function NewAnalysisForm() {
   const [inputMode, setInputMode] = useState<"full" | "sections">("full");
   const [fullNote, setFullNote] = useState("");
   const [sections, setSections] = useState({ ...emptySections });
-  const [documentSource, setDocumentSource] = useState<DocumentSource>("synthetic");
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
-  const [deidentificationConfirmed, setDeidentificationConfirmed] = useState(false);
   const [billingContext, setBillingContext] = useState({ ...emptyBillingContext });
   const [importing, setImporting] = useState(false);
-  function resetPrivacy() { setPrivacyConfirmed(false); setDeidentificationConfirmed(false); setBillingContext({ ...emptyBillingContext }); }
+  function resetPrivacy() { setPrivacyConfirmed(false); setBillingContext({ ...emptyBillingContext }); }
   const [improveHpi, setImproveHpi] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -34,7 +32,7 @@ export function NewAnalysisForm() {
   const activeNote = normalizeDocumentation({ noteType, inputMode, fullNote, sections });
   const selectedSample = demoCases.find((sample) => sample.id === sampleId);
   const unchangedSample = selectedSample?.noteType === noteType && selectedSample.note === activeNote;
-  const usePreparedExample = unchangedSample && documentSource === "synthetic";
+  const usePreparedExample = unchangedSample;
 
   function loadSample(id: string) {
     if (!id) { setSampleId(null); setError(""); return; }
@@ -42,7 +40,7 @@ export function NewAnalysisForm() {
     if (!sample) return;
     if ((fullNote.trim() || Object.values(sections).some((value) => value.trim())) && !window.confirm("Replace both documentation drafts with this fictional example?")) return;
     setNoteType(sample.noteType); setFullNote(sample.note); setSections({ ...sample.sections });
-    resetPrivacy(); setDocumentSource("synthetic");
+    resetPrivacy();
     setSampleId(id); setError("");
   }
 
@@ -53,7 +51,7 @@ export function NewAnalysisForm() {
     const activeSections = { ...emptySections };
     if (inputMode === "sections") for (const key of sectionKeys(noteType)) activeSections[key] = sections[key];
     const input = analysisInputSchema.safeParse({ noteType, inputMode, fullNote: inputMode === "full" ? fullNote : "", sections: activeSections,
-      documentSource, privacyConfirmed, deidentificationConfirmed, billingContext: providerMode === "prepared_demo" ? emptyBillingContext : billingContext, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
+      privacyConfirmed, billingContext: providerMode === "prepared_demo" ? emptyBillingContext : billingContext, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
     if (!input.success) {
       setError(input.error.issues.map((issue) => issue.path[0] === "privacyConfirmed" ? "Step 3: confirm that the documentation contains no identifying patient information and is authorized for this demonstration."
           : issue.message).join(" "));
@@ -90,7 +88,6 @@ export function NewAnalysisForm() {
       {noteType === "progress" && <ProgressNoteGuide />}
 
       <section className="panel"><div className="panel-heading"><h2>2. Add documentation</h2></div>
-        <div className="field mb-5"><label htmlFor="document-source">Documentation source</label><select id="document-source" value={documentSource} onChange={(e) => { setDocumentSource(e.target.value as DocumentSource); resetPrivacy(); }}>{Object.entries(documentSourceLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
         <p className="field-help mb-5">Real-case notes must already be fully de-identified before entering this app. Removing a name alone is insufficient. Automatic screening focuses on patient full names, dates of birth, and hospital MRNs. Historical calendar dates are not automatically blocked. Dates, contact details, locations, and other context may still identify a person and require your review. This app cannot certify de-identification and is not HIPAA-compliant. <a className="text-link" href="https://www.hhs.gov/hipaa/for-professionals/special-topics/de-identification/index.html" target="_blank" rel="noreferrer">Read HHS guidance</a>.</p>
         <NoteFileImport onBusy={setImporting} onApply={(text) => { if (fullNote.trim() && !window.confirm("Replace your full-note draft with the reviewed file text?")) return false; setFullNote(text); setInputMode("full"); setSampleId(null); resetPrivacy(); return true; }} />
         <fieldset className="input-mode-options"><legend>Input method</legend>{(["full", "sections"] as const).map((mode) => <label key={mode}><input type="radio" name="inputMode" checked={inputMode === mode} onChange={() => { setInputMode(mode); resetPrivacy(); }} /> {mode === "full" ? "Full note" : "Separate sections"}</label>)}</fieldset>
@@ -105,17 +102,16 @@ export function NewAnalysisForm() {
         {(Object.keys(billingContextLabels) as (keyof typeof billingContextLabels)[]).map((key) => <div key={key} className="mt-4"><label className="checkbox-label"><input type="checkbox" checked={billingContext[key]} aria-describedby={`billing-help-${key}`} onChange={(e) => { setBillingContext((previous) => ({ ...previous, [key]: e.target.checked })); setPrivacyConfirmed(false); }} /><span>{billingContextLabels[key]}</span></label><p id={`billing-help-${key}`} className="field-help mt-2 ml-6">{billingContextHelp[key]}</p></div>)}
         <p className="field-help mt-4"><strong>This asks about what you bill.</strong> Another clinician billing for their own work does not automatically exclude yours.</p>
         <p className="field-help mt-3">Not sure? Leave the box unchecked. The app will treat that billing detail as unknown; ordinary documented lab reviews can still count. The note must still describe the work. Checking a box does not guarantee a code or change your note.</p>
-        <p className="field-help mt-3">For fictional examples, use only what the scenario establishes. These boxes are cleared if you edit the note or change its type, input method or source.</p>
+        <p className="field-help mt-3">For fictional examples, use only what the scenario establishes. These boxes are cleared if you edit the note or change its type or input method.</p>
       </details></section>}
 
-      <section className="panel"><h2>3. Review and analyze</h2><label className="checkbox-label mt-5"><input type="checkbox" checked={privacyConfirmed} onChange={(e) => setPrivacyConfirmed(e.target.checked)} required /><span>I confirm the active documentation contains no identifying patient information and I am authorized to use it. {usePreparedExample ? "The submitted text and prepared results are saved to my account without an AI request." : "Live analysis sends the reviewed text to OpenAI; the submitted text and results are saved to my account."}</span></label>
-        {documentSource === "deidentified" && <label className="checkbox-label mt-4"><input type="checkbox" checked={deidentificationConfirmed} onChange={(e) => setDeidentificationConfirmed(e.target.checked)} required /><span>This real-case note was fully de-identified before entering this app, with all potentially identifying details and context reviewed. I reviewed it and understand automated screening cannot verify this.</span></label>}
+      <section className="panel"><h2>3. Review and analyze</h2><label className="checkbox-label mt-5"><input type="checkbox" checked={privacyConfirmed} onChange={(e) => setPrivacyConfirmed(e.target.checked)} required /><span>I confirm the documentation is fictional or fully de-identified, contains no identifying patient information, and I am authorized to use it. {usePreparedExample ? "The submitted text and prepared results are saved to my account without an AI request." : "Live analysis sends the reviewed text to OpenAI; the submitted text and results are saved to my account."}</span></label>
         <p className="field-help mt-3">Live AI: up to {LIVE_ANALYSES_PER_DAY} attempts per account each day, with one analysis running at a time. Daily limits reset at midnight UTC. Live AI pauses when the shared demo budget is reached; prepared examples remain available.</p>
         <div className="analysis-actions"><button className="button primary" type="submit" disabled={pending} aria-describedby="analysis-mode-help">{pending ? <><LoaderCircle size={18} className="spin" /> {usePreparedExample ? "Loading and saving..." : "Analyzing and saving..."}</> : usePreparedExample ? <><FlaskConical size={17} /> Run prepared example</> : <>Run live AI analysis <ArrowRight size={17} /></>}</button></div>
         <p id="analysis-mode-help" className="field-help mt-3">{usePreparedExample
           ? "This complete fictional note uses a built-in teaching assessment. No AI request is made. Find your saved result under Saved analyses."
           : selectedSample
-            ? "This note differs from the selected fictional example or its source setting has changed. Live AI analyzes the active documentation, then saves the result."
+            ? "This note differs from the selected fictional example. Live AI analyzes the active documentation, then saves the result."
             : "Notes you paste, import, or write use live AI analysis. Use fictional or fully de-identified documentation only."} {!usePreparedExample && "Live analysis sends the reviewed text to OpenAI and may take up to a minute."}</p>
         <div aria-live="polite" aria-atomic="true">{pending && <p className="field-help mt-3" role="status">{usePreparedExample ? "Loading the prepared teaching assessment and saving your results. Please keep this page open." : "Analyzing documentation with AI, evaluating MDM, and saving your results. Please keep this page open."}</p>}{error && <p ref={errorRef} tabIndex={-1} role="alert" className="form-error mt-4">{error}</p>}</div>
       </section>

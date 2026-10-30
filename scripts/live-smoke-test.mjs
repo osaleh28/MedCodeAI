@@ -47,7 +47,7 @@ try {
       sample = { ...sample, sections, note: normalizeDocumentation({ noteType: sample.noteType, inputMode: "sections", fullNote: "", sections }) };
     }
     const inputMode = index % 2 ? "sections" : "full";
-    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), documentSource: index % 2 ? "deidentified" : "synthetic", privacyConfirmed: true, deidentificationConfirmed: index % 2 === 1, improveHpi: sample.noteType === "admission" && !process.argv.includes("--orders") && !process.argv.includes("--context") && !process.argv.includes("--reporting"), providerMode: "openai", sampleId: null, billingContext: sample.billingContext ?? emptyBillingContext };
+    const input = { noteType: sample.noteType, inputMode, fullNote: inputMode === "full" ? sample.note : "", sections: inputMode === "sections" ? sample.sections : Object.fromEntries(Object.keys(sample.sections).map((key) => [key, ""])), privacyConfirmed: true, improveHpi: sample.noteType === "admission" && !process.argv.includes("--orders") && !process.argv.includes("--context") && !process.argv.includes("--reporting"), providerMode: "openai", sampleId: null, billingContext: sample.billingContext ?? emptyBillingContext };
     const response = await fetch(new URL("/api/analyses", base), { method: "POST", headers, body: JSON.stringify(input), signal: AbortSignal.timeout(60_000) });
     const result = await response.json();
     assert.equal(response.status, 201, result.error || "Live analysis was not saved.");
@@ -57,13 +57,13 @@ try {
     assert.equal(record.syntheticNote, sample.note);
     if (process.argv.includes("--history-dates")) assert.ok(record.syntheticNote.includes("03/15/2010"), "Historical dates must be preserved, not silently removed or changed.");
     assert.equal(record.userId, id);
-    // Synthetic controls exercise both declared-source paths; no real notes are used.
-    assert.equal(record.submittedInput.documentSource, input.documentSource);
-    assert.equal(record.syntheticDataConfirmed, input.documentSource === "synthetic");
+    // Only original fictional controls are submitted; custom live input has a neutral source label.
+    assert.equal(record.submittedInput.documentSource, "user_provided");
+    assert.equal(record.syntheticDataConfirmed, false);
     const report = reportSchema.parse(record.structuredAnalysis);
     if (process.argv.includes("--reporting")) console.log(JSON.stringify({ case: sampleId, code: report.mdm.potentialCode, minimum: report.mdm.minimumSupportedCode, dataComplete: report.extraction.dataComplete, data: report.extraction.data.map(({activity, uniqueKey, qualifies, uncertain, separatelyReported, performedByOther}) => ({activity, uniqueKey, qualifies, uncertain, separatelyReported, performedByOther})) }));
     assert.equal(report.origin, "openai");
-    assert.equal(report.documentSource, input.documentSource);
+    assert.equal(report.documentSource, "user_provided");
     assert.deepEqual(report.billingContext, sample.billingContext ?? emptyBillingContext);
     assert.deepEqual(record.submittedInput.billingContext, sample.billingContext ?? emptyBillingContext);
     assert.ok(report.model);

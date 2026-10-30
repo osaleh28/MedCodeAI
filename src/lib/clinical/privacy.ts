@@ -1,6 +1,6 @@
-export type DocumentSource = "synthetic" | "deidentified";
+export type DocumentSource = "synthetic" | "deidentified" | "user_provided";
 export const documentSourceLabels: Record<DocumentSource, string> = {
-  synthetic: "Fictional teaching note", deidentified: "De-identified real-case note",
+  synthetic: "Fictional teaching note", deidentified: "De-identified real-case note", user_provided: "User-provided documentation",
 };
 export const privacyNotice = "Portfolio demonstration only. Fictional or fully de-identified notes only. Not intended for patient care or actual billing decisions.";
 
