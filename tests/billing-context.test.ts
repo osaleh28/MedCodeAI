@@ -8,7 +8,7 @@ import { infectionOrdersCase } from "./fixtures/infection-orders";
 
 test("reporting confirmations default to unconfirmed on legacy inputs and reports", () => {
   const sample = infectionOrdersCase;
-  const input = analysisInputSchema.parse({ noteType: "admission", inputMode: "full", fullNote: sample.note, sections: emptySections, syntheticOnly: true, encounterConfirmed: true, improveHpi: false, providerMode: "openai", sampleId: null });
+  const input = analysisInputSchema.parse({ noteType: "admission", inputMode: "full", fullNote: sample.note, sections: emptySections, syntheticOnly: true, improveHpi: false, providerMode: "openai", sampleId: null });
   assert.deepEqual(input.billingContext, emptyBillingContext);
   const report = reportSchema.parse({ schemaVersion: 1, origin: "openai", model: "test", demoCaseId: null, exampleRationale: null, extraction: sample.extraction, mdm: evaluateMdm(sample.extraction, sample.note, "admission"), hpi: null });
   assert.deepEqual(report.billingContext, emptyBillingContext);

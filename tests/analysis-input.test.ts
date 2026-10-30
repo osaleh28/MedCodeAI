@@ -4,7 +4,7 @@ import { analysisInputSchema, containsObviousIdentifiers, emptySections, normali
 import { demoCases, resolvePreparedCase } from "../src/lib/clinical/demos";
 import { InputError, readLimitedJson, sameOrigin } from "../src/lib/clinical/api-input";
 
-const base = { noteType: "admission", inputMode: "full", fullNote: "Fictional documentation.", sections: { ...emptySections }, syntheticOnly: true, encounterConfirmed: true, improveHpi: false, providerMode: "openai", sampleId: null };
+const base = { noteType: "admission", inputMode: "full", fullNote: "Fictional documentation.", sections: { ...emptySections }, syntheticOnly: true, improveHpi: false, providerMode: "openai", sampleId: null };
 test("empty or inactive-only documentation cannot be analyzed", () => {
   assert.equal(analysisInputSchema.safeParse({ ...base, fullNote: "  " }).success, false);
   assert.equal(analysisInputSchema.safeParse({ ...base, inputMode: "sections" }).success, false);
@@ -16,7 +16,19 @@ test("any single active section is enough; all other sections remain optional", 
   }
 });
 test("consent, encounter assumption, note length, and workflow are validated", () => {
-  for (const changed of [{ syntheticOnly: false }, { encounterConfirmed: false }, { noteType: "other" }, { fullNote: "a".repeat(12_001) }, { noteType: "progress", improveHpi: true }]) assert.equal(analysisInputSchema.safeParse({ ...base, ...changed }).success, false);
+  for (const changed of [{ syntheticOnly: false }, { noteType: "other" }, { fullNote: "a".repeat(12_001) }, { noteType: "progress", improveHpi: true }]) assert.equal(analysisInputSchema.safeParse({ ...base, ...changed }).success, false);
+});
+
+test("workflow selection requires no additional encounter checkbox", () => {
+  for (const noteType of ["admission", "progress"] as const) {
+    for (const legacyValue of [undefined, false, true]) {
+      const parsed = analysisInputSchema.safeParse({ ...base, noteType, encounterConfirmed: legacyValue });
+      assert.equal(parsed.success, true);
+      if (parsed.success) assert.equal(parsed.data.noteType, noteType);
+    }
+  }
+  assert.equal(analysisInputSchema.safeParse({ ...base, noteType: "consultation" }).success, false);
+  assert.equal(analysisInputSchema.safeParse({ ...base, syntheticOnly: false }).success, false);
 });
 
 test("12,000-character boundary applies to combined active sections including headings", () => {

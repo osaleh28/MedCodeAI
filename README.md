@@ -143,7 +143,7 @@ Open the **Local** URL printed by Next.js. Set `AUTH_URL` to that origin; if por
 
 1. Sign in and open **New analysis**.
 2. Choose a built-in fictional example, enter a fictional note, or select **De-identified real-case note** for material already fully de-identified. Both input modes support live analysis. DOCX and TXT imports show editable extracted text before applying it to the full-note draft.
-3. Review the selected encounter assumption and confirm the encounter and privacy acknowledgements. Real-case notes require an additional de-identification confirmation. Enable **Improve HPI** for an admission if desired.
+3. Choose Admission H&P or Progress Note and confirm the privacy acknowledgement. Real-case notes require an additional de-identification confirmation. Enable **Improve HPI** for an admission if desired.
 4. The form shows one analysis button. An unchanged selected built-in note shows **Run prepared example**, which uses a built-in teaching assessment without an OpenAI request. Notes you paste, import, write or edit show **Run live AI analysis**, which sends the reviewed documentation to OpenAI before the separate rules engine evaluates it.
 5. Review the **Prepared educational example** or **Live AI extraction** origin label, source excerpts, three MDM elements, potential CPT, and clarification questions. Reopen the result from History.
 
@@ -202,7 +202,7 @@ For the new opt-in live regression, run `npm.cmd run test:live -- --orders`. It 
 ## Security and privacy
 
 - Passwords are hashed, never stored as plaintext. Registration/login validation includes bcrypt's 72-byte limit.
-- Auth.js handles authentication cookies/protections; Next server actions validate origins. API mutations independently require same-origin JSON, an authenticated account, bounded input and privacy/encounter acknowledgements; real-case notes require separate de-identification confirmation.
+- Auth.js handles authentication cookies/protections; Next server actions validate origins. API mutations independently require same-origin JSON, an authenticated account, bounded input and privacy acknowledgements; real-case notes require separate de-identification confirmation.
 - Server session ownership controls creation, list, history, detail pages and direct-ID API access. Client-supplied ownership fields are rejected.
 - Shared PostgreSQL limits allow five registrations or ten logins per email, ten live analyses per account, or twenty prepared examples per account in 15 minutes. These are demo safeguards, not comprehensive distributed/IP abuse protection.
 - Secrets stay server-side. Logs contain safe categories, not submitted documentation, provider payloads, passwords or raw database exceptions.
@@ -331,7 +331,7 @@ After approval:
 
 - Register, sign in, refresh, sign out, and revisit a protected URL using the final HTTPS domain. Check that authentication cookies are Secure/HttpOnly.
 - At phone and desktop widths, use only the keyboard to reach navigation, radios, fields, collapsible sections, submit controls, error messages and copy action; check contrast, focus and horizontal overflow.
-- In both workflows, type distinct drafts in Full Note and Separate Sections, switch back and forth, and verify preservation while mounted. Confirm all diagnostic sections and A&P are usable. Changing samples must request replacement and reset encounter confirmation.
+- In both workflows, type distinct drafts in Full Note and Separate Sections, switch back and forth, and verify preservation while mounted. Confirm all diagnostic sections and A&P are usable. Changing samples must request replacement and reset privacy acknowledgements.
 - Import small fictional DOCX and TXT files; verify review/edit/apply/cancel behavior, replacement confirmation, no binary upload and preservation of section drafts. Confirm that the picker offers only DOCX/TXT and that PDF selection is rejected.
 - Submit empty/incomplete fictional documentation, missing acknowledgements, edited examples, and normal prepared cases; check visible feedback, loading/disabled controls, results and History.
 - With a configured API key, analyze an entirely invented admission with HPI enabled and an invented progress note. Review the actual response/evidence, omissions, uncertainty and saved report. Rewording unchanged HPI facts must not independently affect coding. An indeterminate outcome may be correct.

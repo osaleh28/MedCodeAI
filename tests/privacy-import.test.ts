@@ -7,7 +7,7 @@ import { reportSchema } from "../src/lib/clinical/report";
 import { demoCases } from "../src/lib/clinical/demos";
 import { evaluateMdm } from "../src/lib/clinical/mdm";
 
-const input = { noteType: "progress", inputMode: "full", fullNote: "Fictional teaching documentation.", sections: emptySections, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: true, encounterConfirmed: true, improveHpi: false, providerMode: "openai", sampleId: null };
+const input = { noteType: "progress", inputMode: "full", fullNote: "Fictional teaching documentation.", sections: emptySections, documentSource: "deidentified", privacyConfirmed: true, deidentificationConfirmed: true, improveHpi: false, providerMode: "openai", sampleId: null };
 test("de-identified source requires separate explicit permission and cannot claim a prepared fixture", () => {
   assert.equal(analysisInputSchema.safeParse(input).success, true);
   for (const changed of [{ deidentificationConfirmed: false }, { privacyConfirmed: false }, { privacyConfirmed: undefined, syntheticOnly: true }, { providerMode: "prepared_demo" }]) assert.equal(analysisInputSchema.safeParse({ ...input, ...changed }).success, false);

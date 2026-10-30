@@ -43,7 +43,9 @@ export const analysisInputSchema = z.object({
   deidentificationConfirmed: z.boolean().default(false),
   // Compatibility with the previously deployed fictional-only form.
   syntheticOnly: z.boolean().optional(),
-  encounterConfirmed: z.literal(true, { error: "Confirm the encounter assumptions before continuing." }),
+  // Accepted only for compatibility with previously loaded forms. The selected
+  // noteType establishes the workflow; no separate confirmation is required.
+  encounterConfirmed: z.boolean().optional(),
   improveHpi: z.boolean(),
   providerMode: z.enum(["openai", "prepared_demo"]),
   sampleId: z.string().max(80).nullable(),

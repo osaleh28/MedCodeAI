@@ -25,7 +25,6 @@ export function NewAnalysisForm() {
   const [billingContext, setBillingContext] = useState({ ...emptyBillingContext });
   const [importing, setImporting] = useState(false);
   function resetPrivacy() { setPrivacyConfirmed(false); setDeidentificationConfirmed(false); setBillingContext({ ...emptyBillingContext }); }
-  const [encounterConfirmed, setEncounterConfirmed] = useState(false);
   const [improveHpi, setImproveHpi] = useState(false);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -43,7 +42,7 @@ export function NewAnalysisForm() {
     if (!sample) return;
     if ((fullNote.trim() || Object.values(sections).some((value) => value.trim())) && !window.confirm("Replace both documentation drafts with this fictional example?")) return;
     setNoteType(sample.noteType); setFullNote(sample.note); setSections({ ...sample.sections });
-    setEncounterConfirmed(false); resetPrivacy(); setDocumentSource("synthetic");
+    resetPrivacy(); setDocumentSource("synthetic");
     setSampleId(id); setError("");
   }
 
@@ -54,11 +53,9 @@ export function NewAnalysisForm() {
     const activeSections = { ...emptySections };
     if (inputMode === "sections") for (const key of sectionKeys(noteType)) activeSections[key] = sections[key];
     const input = analysisInputSchema.safeParse({ noteType, inputMode, fullNote: inputMode === "full" ? fullNote : "", sections: activeSections,
-      documentSource, privacyConfirmed, deidentificationConfirmed, billingContext: providerMode === "prepared_demo" ? emptyBillingContext : billingContext, encounterConfirmed, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
+      documentSource, privacyConfirmed, deidentificationConfirmed, billingContext: providerMode === "prepared_demo" ? emptyBillingContext : billingContext, improveHpi: noteType === "admission" && improveHpi, providerMode, sampleId });
     if (!input.success) {
-      setError(input.error.issues.map((issue) => issue.path[0] === "encounterConfirmed"
-        ? "Step 1: confirm this example represents the initial hospital visit or subsequent hospital visit selected above."
-        : issue.path[0] === "privacyConfirmed" ? "Step 3: confirm that the documentation contains no identifying patient information and is authorized for this demonstration."
+      setError(input.error.issues.map((issue) => issue.path[0] === "privacyConfirmed" ? "Step 3: confirm that the documentation contains no identifying patient information and is authorized for this demonstration."
           : issue.message).join(" "));
       // Focus also works when the same validation message is already displayed.
       errorRef.current?.focus();
@@ -84,9 +81,7 @@ export function NewAnalysisForm() {
       <HospitalCodeCards key={noteType} noteType={noteType} />
       <MdmLearningGuide />
       <section className="panel"><div className="panel-heading"><h2>1. Choose your workflow</h2><span className="label">MDM only</span></div>
-        <fieldset className="workflow-options"><legend className="sr-only">Note type</legend>{(["admission", "progress"] as const).map((type) => <label className={`workflow-option ${noteType === type ? "selected" : ""}`} key={type}><input type="radio" name="noteType" checked={noteType === type} onChange={() => { setNoteType(type); setEncounterConfirmed(false); resetPrivacy(); }} /><span><strong>{noteLabels[type]}</strong><small>{type === "admission" ? "Assumes initial hospital inpatient/observation care · 99221–99223" : "Assumes subsequent hospital inpatient/observation care · 99231–99233"}</small></span></label>)}</fieldset>
-        <p className="field-help">These are encounter assumptions. A note title alone does not establish the billable service. Time-based billing is excluded.</p>
-        <label className="checkbox-label mt-4"><input type="checkbox" checked={encounterConfirmed} onChange={(e) => setEncounterConfirmed(e.target.checked)} aria-describedby="encounter-scope" required /><span>I confirm this example represents the initial hospital visit or subsequent hospital visit selected above.</span></label>
+        <fieldset className="workflow-options"><legend className="sr-only">Note type</legend>{(["admission", "progress"] as const).map((type) => <label className={`workflow-option ${noteType === type ? "selected" : ""}`} key={type}><input type="radio" name="noteType" checked={noteType === type} onChange={() => { setNoteType(type); resetPrivacy(); }} /><span><strong>{noteLabels[type]}</strong><small>{type === "admission" ? "Assumes initial hospital inpatient/observation care · 99221–99223" : "Assumes subsequent hospital inpatient/observation care · 99231–99233"}</small></span></label>)}</fieldset>
         <p id="encounter-scope" className="field-help mt-3">This demo evaluates these two hospital-care categories only. Consultation, critical-care, discharge, and same-day admission/discharge coding are outside its scope.</p>
       </section>
 
@@ -97,7 +92,7 @@ export function NewAnalysisForm() {
       <section className="panel"><div className="panel-heading"><h2>2. Add documentation</h2></div>
         <div className="field mb-5"><label htmlFor="document-source">Documentation source</label><select id="document-source" value={documentSource} onChange={(e) => { setDocumentSource(e.target.value as DocumentSource); resetPrivacy(); }}>{Object.entries(documentSourceLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
         <p className="field-help mb-5">Real-case notes must already be fully de-identified before entering this app. Removing a name alone is insufficient. Automatic screening focuses on patient full names, dates of birth, and hospital MRNs. Historical calendar dates are not automatically blocked. Dates, contact details, locations, and other context may still identify a person and require your review. This app cannot certify de-identification and is not HIPAA-compliant. <a className="text-link" href="https://www.hhs.gov/hipaa/for-professionals/special-topics/de-identification/index.html" target="_blank" rel="noreferrer">Read HHS guidance</a>.</p>
-        <NoteFileImport onBusy={setImporting} onApply={(text) => { if (fullNote.trim() && !window.confirm("Replace your full-note draft with the reviewed file text?")) return false; setFullNote(text); setInputMode("full"); setSampleId(null); setEncounterConfirmed(false); resetPrivacy(); return true; }} />
+        <NoteFileImport onBusy={setImporting} onApply={(text) => { if (fullNote.trim() && !window.confirm("Replace your full-note draft with the reviewed file text?")) return false; setFullNote(text); setInputMode("full"); setSampleId(null); resetPrivacy(); return true; }} />
         <fieldset className="input-mode-options"><legend>Input method</legend>{(["full", "sections"] as const).map((mode) => <label key={mode}><input type="radio" name="inputMode" checked={inputMode === mode} onChange={() => { setInputMode(mode); resetPrivacy(); }} /> {mode === "full" ? "Full note" : "Separate sections"}</label>)}</fieldset>
         <p className="field-help mb-5">Your drafts stay here when you switch modes. Only the active mode and the selected workflow’s fields are submitted. Drafts are not stored in browser storage.</p>
         {inputMode === "full" ? <div className="field"><label htmlFor="full-note">Complete {noteLabels[noteType]}</label><textarea id="full-note" rows={17} value={fullNote} onChange={(e) => { setFullNote(e.target.value); resetPrivacy(); }} placeholder="Paste fictional or fully de-identified clinical documentation. Never enter identifying patient information." /><span className="field-help">{fullNote.length.toLocaleString()} / {MAX_NOTE_CHARACTERS.toLocaleString()} characters</span></div> : <div className="section-inputs">{sectionKeys(noteType).map((key, index) => <details key={key} open={index === 0 || key === "assessmentPlan"}><summary>{sectionLabels[key]} <span className="field-help">{sections[key].trim() ? "Text added" : "Optional"}</span></summary><div className="field"><label className="sr-only" htmlFor={`section-${key}`}>{sectionLabels[key]}</label><textarea id={`section-${key}`} rows={key === "assessmentPlan" || key === "hpi" ? 6 : 4} value={sections[key]} onChange={(e) => { setSections((previous) => ({ ...previous, [key]: e.target.value })); resetPrivacy(); }} placeholder={`Add ${sectionLabels[key].toLowerCase()} if documented.`} /></div></details>)}</div>}
