@@ -29,6 +29,7 @@ button:disabled { cursor: wait; opacity: .65; }
 .button:hover { transform: translateY(-1px); }
 .button.primary { background: var(--teal); color: #fff; box-shadow: 0 3px 5px #087f7914; }
 .button.primary:hover { background: #066c67; }
+.button.get-started, .button.get-started:hover { background: #000; }
 .button.secondary { background: #fff; border-color: #cbd8df; color: var(--ink); }
 .button.small { padding: 10px 17px; }
 .button.full { width: 100%; }

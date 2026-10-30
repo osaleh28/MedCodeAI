@@ -7,7 +7,7 @@ export default function Home() {
   return <>
     <header className="site-header"><div className="container header-inner">
       <Brand /><nav className="nav-links" aria-label="Main navigation"><a href="#features">Why MedCode AI</a><a href="#how-it-works">How it works</a><a href="#responsible-use">Responsible use</a></nav>
-      <div className="nav-actions"><Link href="/login" className="text-link">Sign in</Link><Link href="/register" className="button primary small">Get started <ArrowRight size={15} /></Link></div>
+      <div className="nav-actions"><Link href="/login" className="text-link">Sign in</Link><Link href="/register" className="button primary small get-started">Get started <ArrowRight size={15} /></Link></div>
     </div></header>
     <main id="main-content">
       <section className="hero"><div className="container hero-grid">
